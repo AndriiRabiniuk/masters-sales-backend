@@ -1,7 +1,22 @@
 const express = require('express');
 const router = express.Router();
-const authService = require('../services/authService');
-const { authenticate, authorize, refreshToken } = require('../middleware/auth');
+const { 
+  registerUser, 
+  loginUser, 
+  getUserProfile, 
+  updateUserProfile,
+  refreshAccessToken,
+  logoutUser,
+  changePassword 
+} = require('../controllers/authController');
+const { protect, admin, authorize } = require('../middleware/authMiddleware');
+
+/**
+ * @swagger
+ * tags:
+ *   name: Auth
+ *   description: Authentication endpoints
+ */
 
 /**
  * @swagger
@@ -35,28 +50,7 @@ const { authenticate, authorize, refreshToken } = require('../middleware/auth');
  *       400:
  *         description: Invalid input
  */
-router.post('/register', async (req, res, next) => {
-  try {
-    const { username, email, password, role } = req.body;
-    
-    if (!username || !email || !password) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Please provide username, email, and password' 
-      });
-    }
-    
-    const result = await authService.register({ username, email, password, role });
-    
-    res.status(201).json({
-      success: true,
-      token: result.token,
-      user: result.user
-    });
-  } catch (error) {
-    next(error);
-  }
-});
+router.post('/register', registerUser);
 
 /**
  * @swagger
@@ -84,35 +78,7 @@ router.post('/register', async (req, res, next) => {
  *       401:
  *         description: Invalid credentials
  */
-router.post('/login', async (req, res, next) => {
-  try {
-    const { email, password } = req.body;
-    
-    if (!email || !password) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Please provide email and password' 
-      });
-    }
-    
-    const result = await authService.login(email, password);
-    
-    if (!result.success) {
-      return res.status(401).json({
-        success: false,
-        message: result.message
-      });
-    }
-    
-    res.status(200).json({
-      success: true,
-      token: result.token,
-      user: result.user
-    });
-  } catch (error) {
-    next(error);
-  }
-});
+router.post('/login', loginUser);
 
 /**
  * @swagger
@@ -128,18 +94,7 @@ router.post('/login', async (req, res, next) => {
  *       401:
  *         description: Unauthorized
  */
-router.get('/profile', authenticate, refreshToken, async (req, res, next) => {
-  try {
-    const user = await authService.getUserProfile(req.user._id);
-    
-    res.status(200).json({
-      success: true,
-      user
-    });
-  } catch (error) {
-    next(error);
-  }
-});
+router.get('/profile', protect, getUserProfile);
 
 /**
  * @swagger
@@ -159,39 +114,46 @@ router.get('/profile', authenticate, refreshToken, async (req, res, next) => {
  *                 type: string
  *               email:
  *                 type: string
+ *               password:
+ *                 type: string
  *     responses:
  *       200:
  *         description: Profile updated
  *       401:
  *         description: Unauthorized
  */
-router.put('/profile', authenticate, refreshToken, async (req, res, next) => {
-  try {
-    // Don't allow password update through this route
-    if (req.body.password) {
-      delete req.body.password;
-    }
-    
-    // Don't allow role update through this route (only admins can change roles)
-    if (req.body.role) {
-      delete req.body.role;
-    }
-    
-    const user = await authService.updateUserProfile(req.user._id, req.body);
-    
-    res.status(200).json({
-      success: true,
-      user
-    });
-  } catch (error) {
-    next(error);
-  }
-});
+router.put('/profile', protect, updateUserProfile);
+
+/**
+ * @swagger
+ * /api/auth/refresh-token:
+ *   post:
+ *     summary: Refresh access token
+ *     tags: [Auth]
+ *     responses:
+ *       200:
+ *         description: New access token
+ *       401:
+ *         description: Invalid refresh token
+ */
+router.post('/refresh-token', refreshAccessToken);
+
+/**
+ * @swagger
+ * /api/auth/logout:
+ *   post:
+ *     summary: Logout user (clear refresh token cookie)
+ *     tags: [Auth]
+ *     responses:
+ *       200:
+ *         description: Logged out successfully
+ */
+router.post('/logout', logoutUser);
 
 /**
  * @swagger
  * /api/auth/change-password:
- *   post:
+ *   put:
  *     summary: Change user password
  *     tags: [Auth]
  *     security:
@@ -212,31 +174,11 @@ router.put('/profile', authenticate, refreshToken, async (req, res, next) => {
  *                 type: string
  *     responses:
  *       200:
- *         description: Password changed
+ *         description: Password changed successfully
  *       401:
  *         description: Unauthorized or incorrect current password
  */
-router.post('/change-password', authenticate, refreshToken, async (req, res, next) => {
-  try {
-    const { currentPassword, newPassword } = req.body;
-    
-    if (!currentPassword || !newPassword) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Please provide current password and new password' 
-      });
-    }
-    
-    await authService.changePassword(req.user._id, currentPassword, newPassword);
-    
-    res.status(200).json({
-      success: true,
-      message: 'Password changed successfully'
-    });
-  } catch (error) {
-    next(error);
-  }
-});
+router.put('/change-password', protect, changePassword);
 
 /**
  * @swagger
@@ -265,7 +207,7 @@ router.post('/change-password', authenticate, refreshToken, async (req, res, nex
  *       403:
  *         description: Forbidden
  */
-router.get('/users', authenticate, authorize(['admin']), async (req, res, next) => {
+router.get('/users', protect, admin, async (req, res, next) => {
   try {
     const { page, limit } = req.query;
     const options = {
@@ -309,7 +251,7 @@ router.get('/users', authenticate, authorize(['admin']), async (req, res, next) 
  *       404:
  *         description: User not found
  */
-router.delete('/users/:id', authenticate, authorize(['admin']), async (req, res, next) => {
+router.delete('/users/:id', protect, admin, async (req, res, next) => {
   try {
     const user = await authService.deleteUser(req.params.id);
     
