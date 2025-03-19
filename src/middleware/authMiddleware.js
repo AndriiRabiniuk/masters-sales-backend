@@ -4,16 +4,10 @@ const User = require('../models/userModel');
 
 /**
  * Middleware to protect routes by verifying JWT token
+ * @route Middleware for protected routes
+ * @access Public -> Private
  */
 const protect = asyncHandler(async (req, res, next) => {
-  // TEMPORARY: For testing purposes only - remove in production
-  if (process.env.NODE_ENV === 'development' && process.env.BYPASS_AUTH === 'true') {
-    console.log('⚠️ AUTH BYPASS ENABLED - FOR TESTING ONLY');
-    // Optionally set a test user
-    req.user = { id: '123456789012345678901234', role: 'admin' };
-    return next();
-  }
-
   let token;
 
   if (
@@ -27,25 +21,48 @@ const protect = asyncHandler(async (req, res, next) => {
       // Verify token
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-      // Get user from the token
-      req.user = await User.findById(decoded.id).select('-password');
+      // Check if token is expired
+      if (decoded.exp && Date.now() >= decoded.exp * 1000) {
+        res.status(401);
+        throw new Error('Token expired, please login again');
+      }
 
+      // Get user from the token
+      const user = await User.findById(decoded.id).select('-password');
+
+      // Check if user still exists
+      if (!user) {
+        res.status(401);
+        throw new Error('User not found');
+      }
+
+      // Add user to request object
+      req.user = user;
       next();
     } catch (error) {
-      console.error(error);
-      res.status(401);
-      throw new Error('Not authorized, token failed');
+      console.error(`Authentication error: ${error.message}`);
+      
+      if (error.name === 'JsonWebTokenError') {
+        res.status(401);
+        throw new Error('Invalid token');
+      } else if (error.name === 'TokenExpiredError') {
+        res.status(401);
+        throw new Error('Token expired, please login again');
+      } else {
+        res.status(401);
+        throw new Error('Not authorized, authentication failed');
+      }
     }
-  }
-
-  if (!token) {
+  } else if (!token) {
     res.status(401);
-    throw new Error('Not authorized, no token');
+    throw new Error('Not authorized, no token provided');
   }
 });
 
 /**
  * Middleware to restrict access to admin users
+ * @route Middleware for admin-only routes
+ * @access Private -> Admin only
  */
 const admin = (req, res, next) => {
   if (req.user && req.user.role === 'admin') {
@@ -56,4 +73,30 @@ const admin = (req, res, next) => {
   }
 };
 
-module.exports = { protect, admin }; 
+/**
+ * Middleware to restrict access based on user roles
+ * @param {Array} roles - Array of allowed roles
+ * @route Middleware for role-based access control
+ * @access Private -> Role-based
+ */
+const authorize = (roles = []) => {
+  if (typeof roles === 'string') {
+    roles = [roles];
+  }
+
+  return (req, res, next) => {
+    if (!req.user) {
+      res.status(401);
+      throw new Error('Not authorized, authentication required');
+    }
+
+    if (roles.length && !roles.includes(req.user.role)) {
+      res.status(403);
+      throw new Error(`Role ${req.user.role} is not authorized to access this route`);
+    }
+
+    next();
+  };
+};
+
+module.exports = { protect, admin, authorize }; 
