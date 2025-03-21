@@ -32,6 +32,40 @@ const swaggerOptions = {
         bearerAuth: [],
       },
     ],
+    tags: [
+      {
+        name: 'Auth',
+        description: 'Authentication and user management endpoints',
+      },
+      {
+        name: 'Companies',
+        description: 'Company management endpoints',
+      },
+      {
+        name: 'Clients',
+        description: 'Client management endpoints',
+      },
+      {
+        name: 'Contacts',
+        description: 'Contact management endpoints',
+      },
+      {
+        name: 'Leads',
+        description: 'Lead management endpoints',
+      },
+      {
+        name: 'Notes',
+        description: 'Note management endpoints',
+      },
+      {
+        name: 'Interactions',
+        description: 'Interaction management endpoints',
+      },
+      {
+        name: 'Tasks',
+        description: 'Task management endpoints',
+      },
+    ],
   },
   apis: ['./src/routes/*.js'], // Path to the API routes files
 };
