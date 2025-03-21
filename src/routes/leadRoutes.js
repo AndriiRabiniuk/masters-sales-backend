@@ -1,6 +1,5 @@
 const express = require('express');
 const router = express.Router();
-const { protect } = require('../middleware/authMiddleware');
 const { 
   getLeads, 
   getLeadById, 
@@ -8,6 +7,7 @@ const {
   updateLead, 
   deleteLead 
 } = require('../controllers/leadController');
+const { protect, authorize } = require('../middleware/authMiddleware');
 
 /**
  * @swagger
@@ -71,23 +71,28 @@ router.get('/:id', protect, getLeadById);
  *           schema:
  *             type: object
  *             required:
- *               - nom
- *               - email
+ *               - client_id
+ *               - name
  *             properties:
- *               nom:
+ *               client_id:
  *                 type: string
- *               entreprise:
- *                 type: string  
- *               email:
+ *                 description: ID of the client this lead is associated with (client must belong to user's company)
+ *               name:
  *                 type: string
- *               telephone:
- *                 type: string
+ *                 description: Name of the lead
  *               source:
  *                 type: string
- *               status:
+ *                 enum: ['website', 'referral', 'event']
+ *                 default: 'website'
+ *                 description: Source of the lead
+ *               statut:
  *                 type: string
- *                 enum: ['new', 'contacted', 'qualified', 'proposal', 'negotiation', 'won', 'lost']
+ *                 enum: ['new', 'contacted', 'won', 'lost']
  *                 default: 'new'
+ *                 description: Status of the lead
+ *               valeur_estimee:
+ *                 type: number
+ *                 description: Estimated value of the lead
  *     responses:
  *       201:
  *         description: Lead created
@@ -95,6 +100,8 @@ router.get('/:id', protect, getLeadById);
  *         description: Invalid data
  *       401:
  *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Not authorized to create leads for this client
  */
 router.post('/', protect, createLead);
 
@@ -118,6 +125,24 @@ router.post('/', protect, createLead);
  *         application/json:
  *           schema:
  *             type: object
+ *             properties:
+ *               client_id:
+ *                 type: string
+ *                 description: ID of the client this lead is associated with (client must belong to user's company)
+ *               name:
+ *                 type: string
+ *                 description: Name of the lead
+ *               source:
+ *                 type: string
+ *                 enum: ['website', 'referral', 'event']
+ *                 description: Source of the lead
+ *               statut:
+ *                 type: string
+ *                 enum: ['new', 'contacted', 'won', 'lost']
+ *                 description: Status of the lead
+ *               valeur_estimee:
+ *                 type: number
+ *                 description: Estimated value of the lead
  *     responses:
  *       200:
  *         description: Lead updated
@@ -125,6 +150,8 @@ router.post('/', protect, createLead);
  *         description: Lead not found
  *       401:
  *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Not authorized to update this lead
  */
 router.put('/:id', protect, updateLead);
 
@@ -149,7 +176,9 @@ router.put('/:id', protect, updateLead);
  *         description: Lead not found
  *       401:
  *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Not authorized to delete this lead
  */
-router.delete('/:id', protect, deleteLead);
+router.delete('/:id', protect, authorize(['super_admin', 'admin', 'manager']), deleteLead);
 
 module.exports = router; 

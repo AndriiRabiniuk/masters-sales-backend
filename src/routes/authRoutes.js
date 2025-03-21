@@ -5,11 +5,12 @@ const {
   loginUser, 
   getUserProfile, 
   updateUserProfile,
-  refreshAccessToken,
+  refreshToken,
   logoutUser,
-  changePassword 
+  getUsers,
+  deleteUser
 } = require('../controllers/authController');
-const { protect, admin, authorize } = require('../middleware/authMiddleware');
+const { protect, isSuperAdmin, isAdmin, authorize } = require('../middleware/authMiddleware');
 
 /**
  * @swagger
@@ -94,35 +95,9 @@ router.post('/login', loginUser);
  *       401:
  *         description: Unauthorized
  */
-router.get('/profile', protect, getUserProfile);
-
-/**
- * @swagger
- * /api/auth/profile:
- *   put:
- *     summary: Update user profile
- *     tags: [Auth]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               username:
- *                 type: string
- *               email:
- *                 type: string
- *               password:
- *                 type: string
- *     responses:
- *       200:
- *         description: Profile updated
- *       401:
- *         description: Unauthorized
- */
-router.put('/profile', protect, updateUserProfile);
+router.route('/profile')
+  .get(protect, getUserProfile)
+  .put(protect, updateUserProfile);
 
 /**
  * @swagger
@@ -136,7 +111,7 @@ router.put('/profile', protect, updateUserProfile);
  *       401:
  *         description: Invalid refresh token
  */
-router.post('/refresh-token', refreshAccessToken);
+router.post('/refresh-token', refreshToken);
 
 /**
  * @swagger
@@ -148,37 +123,7 @@ router.post('/refresh-token', refreshAccessToken);
  *       200:
  *         description: Logged out successfully
  */
-router.post('/logout', logoutUser);
-
-/**
- * @swagger
- * /api/auth/change-password:
- *   put:
- *     summary: Change user password
- *     tags: [Auth]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - currentPassword
- *               - newPassword
- *             properties:
- *               currentPassword:
- *                 type: string
- *               newPassword:
- *                 type: string
- *     responses:
- *       200:
- *         description: Password changed successfully
- *       401:
- *         description: Unauthorized or incorrect current password
- */
-router.put('/change-password', protect, changePassword);
+router.post('/logout', protect, logoutUser);
 
 /**
  * @swagger
@@ -207,24 +152,8 @@ router.put('/change-password', protect, changePassword);
  *       403:
  *         description: Forbidden
  */
-router.get('/users', protect, admin, async (req, res, next) => {
-  try {
-    const { page, limit } = req.query;
-    const options = {
-      page: parseInt(page) || 1,
-      limit: parseInt(limit) || 10
-    };
-    
-    const result = await authService.getAllUsers({}, options);
-    
-    res.status(200).json({
-      success: true,
-      ...result
-    });
-  } catch (error) {
-    next(error);
-  }
-});
+router.route('/users')
+  .get(protect, authorize(['admin', 'super_admin']), getUsers);
 
 /**
  * @swagger
@@ -251,24 +180,7 @@ router.get('/users', protect, admin, async (req, res, next) => {
  *       404:
  *         description: User not found
  */
-router.delete('/users/:id', protect, admin, async (req, res, next) => {
-  try {
-    const user = await authService.deleteUser(req.params.id);
-    
-    if (!user) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'User not found' 
-      });
-    }
-    
-    res.status(200).json({
-      success: true,
-      message: 'User deleted successfully'
-    });
-  } catch (error) {
-    next(error);
-  }
-});
+router.route('/users/:id')
+  .delete(protect, authorize(['admin', 'super_admin']), deleteUser);
 
 module.exports = router; 

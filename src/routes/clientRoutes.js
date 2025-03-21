@@ -1,7 +1,13 @@
 const express = require('express');
 const router = express.Router();
-const clientService = require('../services/clientService');
-const { authenticate, authorize, refreshToken } = require('../middleware/auth');
+const { 
+  createClient, 
+  getClients, 
+  getClientById, 
+  updateClient, 
+  deleteClient 
+} = require('../controllers/clientController');
+const { protect, authorize } = require('../middleware/authMiddleware');
 
 /**
  * @swagger
@@ -28,24 +34,7 @@ const { authenticate, authorize, refreshToken } = require('../middleware/auth');
  *       401:
  *         description: Unauthorized
  */
-router.get('/', authenticate, refreshToken, async (req, res, next) => {
-  try {
-    const { page, limit } = req.query;
-    const options = {
-      page: parseInt(page) || 1,
-      limit: parseInt(limit) || 10
-    };
-    
-    const result = await clientService.getAllClients({}, options);
-    
-    res.status(200).json({
-      success: true,
-      ...result
-    });
-  } catch (error) {
-    next(error);
-  }
-});
+router.get('/', protect, getClients);
 
 /**
  * @swagger
@@ -78,7 +67,7 @@ router.get('/', authenticate, refreshToken, async (req, res, next) => {
  *       401:
  *         description: Unauthorized
  */
-router.get('/search', authenticate, refreshToken, async (req, res, next) => {
+router.get('/search', protect, async (req, res, next) => {
   try {
     const { term, page, limit } = req.query;
     
@@ -128,25 +117,7 @@ router.get('/search', authenticate, refreshToken, async (req, res, next) => {
  *       404:
  *         description: Client not found
  */
-router.get('/:id', authenticate, refreshToken, async (req, res, next) => {
-  try {
-    const client = await clientService.getClientById(req.params.id);
-    
-    if (!client) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Client not found' 
-      });
-    }
-    
-    res.status(200).json({
-      success: true,
-      client
-    });
-  } catch (error) {
-    next(error);
-  }
-});
+router.get('/:id', protect, getClientById);
 
 /**
  * @swagger
@@ -193,49 +164,7 @@ router.get('/:id', authenticate, refreshToken, async (req, res, next) => {
  *       401:
  *         description: Unauthorized
  */
-router.post('/', authenticate, refreshToken, async (req, res, next) => {
-  try {
-    const { 
-      SIREN, 
-      SIRET, 
-      nom, 
-      code_postal, 
-      code_NAF, 
-      chiffre_d_affaires, 
-      EBIT, 
-      latitude, 
-      longitude, 
-      pdm 
-    } = req.body;
-    
-    if (!nom) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Client name (nom) is required' 
-      });
-    }
-    
-    const client = await clientService.createClient({ 
-      SIREN, 
-      SIRET, 
-      nom, 
-      code_postal, 
-      code_NAF, 
-      chiffre_d_affaires, 
-      EBIT, 
-      latitude, 
-      longitude, 
-      pdm 
-    });
-    
-    res.status(201).json({
-      success: true,
-      client
-    });
-  } catch (error) {
-    next(error);
-  }
-});
+router.post('/', protect, authorize(['super_admin', 'admin', 'manager']), createClient);
 
 /**
  * @swagger
@@ -289,28 +218,7 @@ router.post('/', authenticate, refreshToken, async (req, res, next) => {
  *       404:
  *         description: Client not found
  */
-router.put('/:id', authenticate, refreshToken, async (req, res, next) => {
-  try {
-    // Make sure client exists
-    const existingClient = await clientService.getClientById(req.params.id);
-    
-    if (!existingClient) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Client not found' 
-      });
-    }
-    
-    const client = await clientService.updateClient(req.params.id, req.body);
-    
-    res.status(200).json({
-      success: true,
-      client
-    });
-  } catch (error) {
-    next(error);
-  }
-});
+router.put('/:id', protect, authorize(['super_admin', 'admin', 'manager']), updateClient);
 
 /**
  * @swagger
@@ -337,24 +245,6 @@ router.put('/:id', authenticate, refreshToken, async (req, res, next) => {
  *       404:
  *         description: Client not found
  */
-router.delete('/:id', authenticate, authorize(['admin', 'manager']), async (req, res, next) => {
-  try {
-    const client = await clientService.deleteClient(req.params.id);
-    
-    if (!client) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Client not found' 
-      });
-    }
-    
-    res.status(200).json({
-      success: true,
-      message: 'Client deleted successfully'
-    });
-  } catch (error) {
-    next(error);
-  }
-});
+router.delete('/:id', protect, authorize(['super_admin', 'admin']), deleteClient);
 
 module.exports = router; 

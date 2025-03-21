@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const interactionSchema = new mongoose.Schema({
-  lead: {
+  lead_id: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Lead',
     required: true,
@@ -13,8 +13,8 @@ const interactionSchema = new mongoose.Schema({
   type_interaction: {
     type: String,
     trim: true,
-    enum: ['call', 'email', 'meeting', 'demo', 'presentation', 'other'],
-    default: 'other',
+    enum: ['call', 'email', 'meeting'],
+    default: 'call',
   },
   description: {
     type: String,
@@ -23,11 +23,7 @@ const interactionSchema = new mongoose.Schema({
   created_at: {
     type: Date,
     default: Date.now,
-  },
-  contacts: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Contact',
-  }]
+  }
 }, { timestamps: true });
 
 const Interaction = mongoose.model('Interaction', interactionSchema);

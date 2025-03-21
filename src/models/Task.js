@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const taskSchema = new mongoose.Schema({
-  interaction: {
+  interaction_id: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Interaction',
     required: true,
@@ -18,7 +18,7 @@ const taskSchema = new mongoose.Schema({
   statut: {
     type: String,
     trim: true,
-    enum: ['pending', 'in progress', 'completed', 'cancelled'],
+    enum: ['pending', 'in progress', 'completed'],
     default: 'pending',
   },
   due_date: {
@@ -26,8 +26,9 @@ const taskSchema = new mongoose.Schema({
     required: true,
   },
   assigned_to: {
-    type: String,
-    trim: true,
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
   },
   created_at: {
     type: Date,
