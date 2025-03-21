@@ -9,13 +9,12 @@ const connectDB = require('./config/database');
 const { errorHandler, notFound } = require('./middleware/errorHandler');
 require('dotenv').config();
 
-// Import routes (to be implemented)
+// Import routes
 const authRoutes = require('./routes/authRoutes');
-const clientRoutes = require('./routes/clientRoutes');
+const companyRoutes = require('./routes/companyRoutes');
 const contactRoutes = require('./routes/contactRoutes');
 const leadRoutes = require('./routes/leadRoutes');
 const interactionRoutes = require('./routes/interactionRoutes');
-const taskRoutes = require('./routes/taskRoutes');
 const noteRoutes = require('./routes/noteRoutes');
 
 // Initialize Express app
@@ -45,11 +44,10 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
 // Routes
 app.use('/api/auth', authRoutes);
-app.use('/api/clients', clientRoutes);
+app.use('/api/companies', companyRoutes);
 app.use('/api/contacts', contactRoutes);
 app.use('/api/leads', leadRoutes);
 app.use('/api/interactions', interactionRoutes);
-app.use('/api/tasks', taskRoutes);
 app.use('/api/notes', noteRoutes);
 
 // Root route

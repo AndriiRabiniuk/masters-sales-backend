@@ -1,109 +1,177 @@
-const { Note } = require('../models');
+const { Note, Client } = require('../models');
+const asyncHandler = require('express-async-handler');
 
 /**
  * Get all notes
  * @route GET /api/notes
  * @access Private
  */
-const getNotes = async (req, res) => {
-  try {
-    const notes = await Note.find()
-      .populate('user', 'username')
-      .populate('client', 'nom')
-      .populate('lead', 'nom');
-    res.status(200).json(notes);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+exports.getNotes = asyncHandler(async (req, res) => {
+  // If not super_admin, only show notes from clients in their company
+  let notes;
+  
+  if (req.user.role === 'super_admin') {
+    notes = await Note.find()
+      .populate({
+        path: 'client_id',
+        select: 'name company_id',
+        populate: { path: 'company_id', select: 'name' }
+      });
+  } else {
+    // Find all clients belonging to the user's company
+    const clients = await Client.find({ company_id: req.user.company_id }).select('_id');
+    const clientIds = clients.map(client => client._id);
+    
+    notes = await Note.find({ client_id: { $in: clientIds } })
+      .populate({
+        path: 'client_id',
+        select: 'name company_id',
+        populate: { path: 'company_id', select: 'name' }
+      });
   }
-};
+    
+  res.json(notes);
+});
 
 /**
  * Get note by ID
  * @route GET /api/notes/:id
  * @access Private
  */
-const getNoteById = async (req, res) => {
-  try {
-    const note = await Note.findById(req.params.id)
-      .populate('user', 'username')
-      .populate('client', 'nom')
-      .populate('lead', 'nom');
-    
-    if (!note) {
-      return res.status(404).json({ message: 'Note not found' });
-    }
-    res.status(200).json(note);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+exports.getNoteById = asyncHandler(async (req, res) => {
+  const note = await Note.findById(req.params.id)
+    .populate({
+      path: 'client_id',
+      select: 'name company_id',
+      populate: { path: 'company_id', select: 'name' }
+    });
+  
+  if (!note) {
+    res.status(404);
+    throw new Error('Note not found');
   }
-};
+  
+  // Check if user has permission to view this note
+  if (req.user.role !== 'super_admin') {
+    const client = await Client.findById(note.client_id);
+    if (!client || client.company_id.toString() !== req.user.company_id.toString()) {
+      res.status(403);
+      throw new Error('Not authorized to access this note');
+    }
+  }
+  
+  res.json(note);
+});
 
 /**
  * Create a new note
  * @route POST /api/notes
  * @access Private
  */
-const createNote = async (req, res) => {
-  try {
-    // Add the current user as creator
-    const noteData = {
-      ...req.body,
-      user: req.user.id
-    };
-    
-    const newNote = await Note.create(noteData);
-    res.status(201).json(newNote);
-  } catch (error) {
-    res.status(400).json({ error: error.message });
+exports.createNote = asyncHandler(async (req, res) => {
+  const { client_id, contenu } = req.body;
+  
+  // Validate that client_id is provided
+  if (!client_id) {
+    res.status(400);
+    throw new Error('Client ID is required');
   }
-};
+  
+  // Verify that the client exists and belongs to the user's company
+  const client = await Client.findById(client_id);
+  if (!client) {
+    res.status(404);
+    throw new Error('Client not found');
+  }
+  
+  // If not super_admin, can only create notes for clients in their own company
+  if (req.user.role !== 'super_admin') {
+    if (client.company_id.toString() !== req.user.company_id.toString()) {
+      res.status(403);
+      throw new Error('You can only create notes for clients in your own company');
+    }
+  }
+  
+  const note = await Note.create({
+    client_id,
+    contenu
+  });
+  
+  if (note) {
+    res.status(201).json(note);
+  } else {
+    res.status(400);
+    throw new Error('Invalid note data');
+  }
+});
 
 /**
  * Update a note
  * @route PUT /api/notes/:id
  * @access Private
  */
-const updateNote = async (req, res) => {
-  try {
-    const updatedNote = await Note.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true, runValidators: true }
-    );
-    
-    if (!updatedNote) {
-      return res.status(404).json({ message: 'Note not found' });
+exports.updateNote = asyncHandler(async (req, res) => {
+  const note = await Note.findById(req.params.id);
+  
+  if (!note) {
+    res.status(404);
+    throw new Error('Note not found');
+  }
+  
+  // Check if user has permission to update this note
+  if (req.user.role !== 'super_admin') {
+    const client = await Client.findById(note.client_id);
+    if (!client || client.company_id.toString() !== req.user.company_id.toString()) {
+      res.status(403);
+      throw new Error('Not authorized to update this note');
+    }
+  }
+  
+  // If client_id is being changed, verify that the client exists and user has permission
+  if (req.body.client_id) {
+    const newClient = await Client.findById(req.body.client_id);
+    if (!newClient) {
+      res.status(404);
+      throw new Error('Client not found');
     }
     
-    res.status(200).json(updatedNote);
-  } catch (error) {
-    res.status(400).json({ error: error.message });
+    if (req.user.role !== 'super_admin' && newClient.company_id.toString() !== req.user.company_id.toString()) {
+      res.status(403);
+      throw new Error('Not authorized to assign note to a client from another company');
+    }
   }
-};
+  
+  const updatedNote = await Note.findByIdAndUpdate(
+    req.params.id,
+    req.body,
+    { new: true, runValidators: true }
+  );
+  
+  res.json(updatedNote);
+});
 
 /**
  * Delete a note
  * @route DELETE /api/notes/:id
  * @access Private
  */
-const deleteNote = async (req, res) => {
-  try {
-    const deletedNote = await Note.findByIdAndDelete(req.params.id);
-    
-    if (!deletedNote) {
-      return res.status(404).json({ message: 'Note not found' });
-    }
-    
-    res.status(200).json({ message: 'Note deleted successfully' });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+exports.deleteNote = asyncHandler(async (req, res) => {
+  const note = await Note.findById(req.params.id);
+  
+  if (!note) {
+    res.status(404);
+    throw new Error('Note not found');
   }
-};
-
-module.exports = {
-  getNotes,
-  getNoteById,
-  createNote,
-  updateNote,
-  deleteNote
-}; 
+  
+  // Check if user has permission to delete this note
+  if (req.user.role !== 'super_admin') {
+    const client = await Client.findById(note.client_id);
+    if (!client || client.company_id.toString() !== req.user.company_id.toString()) {
+      res.status(403);
+      throw new Error('Not authorized to delete this note');
+    }
+  }
+  
+  await note.deleteOne();
+  res.json({ message: 'Note removed' });
+}); 

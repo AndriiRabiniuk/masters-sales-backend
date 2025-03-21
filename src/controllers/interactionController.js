@@ -1,108 +1,265 @@
-const { Interaction } = require('../models');
+const { Interaction, Lead, InteractionContact, Contact } = require('../models');
+const asyncHandler = require('express-async-handler');
 
 /**
  * Get all interactions
  * @route GET /api/interactions
  * @access Private
  */
-const getInteractions = async (req, res) => {
-  try {
-    const interactions = await Interaction.find()
-      .populate('client', 'nom')
-      .populate('lead', 'nom')
-      .populate('user', 'username');
-    res.status(200).json(interactions);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+exports.getInteractions = asyncHandler(async (req, res) => {
+  let query = {};
+  
+  // If not super_admin, only show interactions related to leads in their company
+  if (req.user.role !== 'super_admin' && req.user.company_id) {
+    // First get all leads for this company
+    const leads = await Lead.find({ company_id: req.user.company_id });
+    const leadIds = leads.map(lead => lead._id);
+    
+    // Then filter interactions by these lead IDs
+    query.lead_id = { $in: leadIds };
   }
-};
+  
+  const interactions = await Interaction.find(query)
+    .populate('lead_id', 'name');
+  
+  // Get contact information for each interaction
+  const interactionsWithContacts = await Promise.all(
+    interactions.map(async (interaction) => {
+      const interactionContacts = await InteractionContact.find({ interaction_id: interaction._id })
+        .populate('contact_id', 'name prenom email telephone');
+      
+      const contacts = interactionContacts.map(ic => ic.contact_id);
+      
+      return {
+        ...interaction.toObject(),
+        contacts
+      };
+    })
+  );
+  
+  res.json(interactionsWithContacts);
+});
 
 /**
  * Get interaction by ID
  * @route GET /api/interactions/:id
  * @access Private
  */
-const getInteractionById = async (req, res) => {
-  try {
-    const interaction = await Interaction.findById(req.params.id)
-      .populate('client', 'nom')
-      .populate('lead', 'nom')
-      .populate('user', 'username');
-    if (!interaction) {
-      return res.status(404).json({ message: 'Interaction not found' });
-    }
-    res.status(200).json(interaction);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+exports.getInteractionById = asyncHandler(async (req, res) => {
+  const interaction = await Interaction.findById(req.params.id)
+    .populate('lead_id', 'name');
+  
+  if (!interaction) {
+    res.status(404);
+    throw new Error('Interaction not found');
   }
-};
+  
+  // Check if user has permission to view this interaction
+  if (req.user.role !== 'super_admin' && req.user.company_id) {
+    // Get the lead to check if it belongs to the user's company
+    const lead = await Lead.findById(interaction.lead_id);
+    if (!lead || lead.company_id.toString() !== req.user.company_id.toString()) {
+      res.status(403);
+      throw new Error('Not authorized to access this interaction');
+    }
+  }
+  
+  // Get contacts for this interaction
+  const interactionContacts = await InteractionContact.find({ interaction_id: interaction._id })
+    .populate('contact_id', 'name prenom email telephone');
+  
+  const contacts = interactionContacts.map(ic => ic.contact_id);
+  
+  const result = {
+    ...interaction.toObject(),
+    contacts
+  };
+  
+  res.json(result);
+});
 
 /**
  * Create a new interaction
  * @route POST /api/interactions
  * @access Private
  */
-const createInteraction = async (req, res) => {
-  try {
-    // Add the current user to the interaction
-    const interactionData = {
-      ...req.body,
-      user: req.user.id
-    };
-    
-    const newInteraction = await Interaction.create(interactionData);
-    res.status(201).json(newInteraction);
-  } catch (error) {
-    res.status(400).json({ error: error.message });
+exports.createInteraction = asyncHandler(async (req, res) => {
+  const { lead_id, date_interaction, type_interaction, description, contact_ids } = req.body;
+  
+  // Check if user has permission to create an interaction for this lead
+  if (req.user.role !== 'super_admin' && req.user.company_id) {
+    const lead = await Lead.findById(lead_id);
+    if (!lead || lead.company_id.toString() !== req.user.company_id.toString()) {
+      res.status(403);
+      throw new Error('Not authorized to create interactions for this lead');
+    }
   }
-};
+  
+  // Create the interaction
+  const interaction = await Interaction.create({
+    lead_id,
+    date_interaction,
+    type_interaction,
+    description
+  });
+  
+  // If contact_ids are provided, create interaction-contact relationships
+  if (contact_ids && contact_ids.length > 0) {
+    // Make sure all contacts belong to the same company as the user
+    if (req.user.role !== 'super_admin' && req.user.company_id) {
+      const contacts = await Contact.find({ _id: { $in: contact_ids } });
+      
+      for (const contact of contacts) {
+        if (contact.company_id.toString() !== req.user.company_id.toString()) {
+          res.status(403);
+          throw new Error('Not authorized to associate contacts from different companies');
+        }
+      }
+    }
+    
+    // Create the interaction-contact relationships
+    const interactionContacts = await Promise.all(
+      contact_ids.map(contact_id => 
+        InteractionContact.create({
+          interaction_id: interaction._id,
+          contact_id
+        })
+      )
+    );
+  }
+  
+  // Get the created interaction with contacts
+  const createdInteraction = await Interaction.findById(interaction._id)
+    .populate('lead_id', 'name');
+  
+  const interactionContacts = await InteractionContact.find({ interaction_id: interaction._id })
+    .populate('contact_id', 'name prenom email telephone');
+  
+  const contacts = interactionContacts.map(ic => ic.contact_id);
+  
+  const result = {
+    ...createdInteraction.toObject(),
+    contacts
+  };
+  
+  res.status(201).json(result);
+});
 
 /**
  * Update an interaction
  * @route PUT /api/interactions/:id
  * @access Private
  */
-const updateInteraction = async (req, res) => {
-  try {
-    const updatedInteraction = await Interaction.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true, runValidators: true }
-    );
-    
-    if (!updatedInteraction) {
-      return res.status(404).json({ message: 'Interaction not found' });
+exports.updateInteraction = asyncHandler(async (req, res) => {
+  const { lead_id, date_interaction, type_interaction, description, contact_ids } = req.body;
+  
+  const interaction = await Interaction.findById(req.params.id);
+  
+  if (!interaction) {
+    res.status(404);
+    throw new Error('Interaction not found');
+  }
+  
+  // Check if user has permission to update this interaction
+  if (req.user.role !== 'super_admin' && req.user.company_id) {
+    const lead = await Lead.findById(interaction.lead_id);
+    if (!lead || lead.company_id.toString() !== req.user.company_id.toString()) {
+      res.status(403);
+      throw new Error('Not authorized to update this interaction');
     }
     
-    res.status(200).json(updatedInteraction);
-  } catch (error) {
-    res.status(400).json({ error: error.message });
+    // If lead_id is being changed, check if user has permission for the new lead
+    if (lead_id && lead_id !== interaction.lead_id.toString()) {
+      const newLead = await Lead.findById(lead_id);
+      if (!newLead || newLead.company_id.toString() !== req.user.company_id.toString()) {
+        res.status(403);
+        throw new Error('Not authorized to change to this lead');
+      }
+    }
   }
-};
+  
+  // Update the interaction
+  interaction.lead_id = lead_id || interaction.lead_id;
+  interaction.date_interaction = date_interaction || interaction.date_interaction;
+  interaction.type_interaction = type_interaction || interaction.type_interaction;
+  interaction.description = description || interaction.description;
+  
+  await interaction.save();
+  
+  // Update contacts if provided
+  if (contact_ids) {
+    // Make sure all contacts belong to the same company as the user
+    if (req.user.role !== 'super_admin' && req.user.company_id) {
+      const contacts = await Contact.find({ _id: { $in: contact_ids } });
+      
+      for (const contact of contacts) {
+        if (contact.company_id.toString() !== req.user.company_id.toString()) {
+          res.status(403);
+          throw new Error('Not authorized to associate contacts from different companies');
+        }
+      }
+    }
+    
+    // Remove existing interaction-contact relationships
+    await InteractionContact.deleteMany({ interaction_id: interaction._id });
+    
+    // Create new interaction-contact relationships
+    if (contact_ids.length > 0) {
+      await Promise.all(
+        contact_ids.map(contact_id => 
+          InteractionContact.create({
+            interaction_id: interaction._id,
+            contact_id
+          })
+        )
+      );
+    }
+  }
+  
+  // Get the updated interaction with contacts
+  const updatedInteraction = await Interaction.findById(interaction._id)
+    .populate('lead_id', 'name');
+  
+  const interactionContacts = await InteractionContact.find({ interaction_id: interaction._id })
+    .populate('contact_id', 'name prenom email telephone');
+  
+  const contacts = interactionContacts.map(ic => ic.contact_id);
+  
+  const result = {
+    ...updatedInteraction.toObject(),
+    contacts
+  };
+  
+  res.json(result);
+});
 
 /**
  * Delete an interaction
  * @route DELETE /api/interactions/:id
  * @access Private
  */
-const deleteInteraction = async (req, res) => {
-  try {
-    const deletedInteraction = await Interaction.findByIdAndDelete(req.params.id);
-    
-    if (!deletedInteraction) {
-      return res.status(404).json({ message: 'Interaction not found' });
-    }
-    
-    res.status(200).json({ message: 'Interaction deleted successfully' });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+exports.deleteInteraction = asyncHandler(async (req, res) => {
+  const interaction = await Interaction.findById(req.params.id);
+  
+  if (!interaction) {
+    res.status(404);
+    throw new Error('Interaction not found');
   }
-};
-
-module.exports = {
-  getInteractions,
-  getInteractionById,
-  createInteraction,
-  updateInteraction,
-  deleteInteraction
-}; 
+  
+  // Check if user has permission to delete this interaction
+  if (req.user.role !== 'super_admin' && req.user.company_id) {
+    const lead = await Lead.findById(interaction.lead_id);
+    if (!lead || lead.company_id.toString() !== req.user.company_id.toString()) {
+      res.status(403);
+      throw new Error('Not authorized to delete this interaction');
+    }
+  }
+  
+  // Delete all associated interaction-contact relationships
+  await InteractionContact.deleteMany({ interaction_id: interaction._id });
+  
+  // Delete the interaction
+  await interaction.deleteOne();
+  
+  res.json({ message: 'Interaction removed' });
+});

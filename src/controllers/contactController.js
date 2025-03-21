@@ -1,96 +1,181 @@
-const { Contact } = require('../models');
+const { Contact, Client } = require('../models');
+const asyncHandler = require('express-async-handler');
 
 /**
  * Get all contacts
  * @route GET /api/contacts
  * @access Private
  */
-const getContacts = async (req, res) => {
-  try {
-    const contacts = await Contact.find().populate('client', 'nom');
-    res.status(200).json(contacts);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+exports.getContacts = asyncHandler(async (req, res) => {
+  // If not super_admin, only show contacts from clients in their company
+  let contacts;
+  
+  if (req.user.role === 'super_admin') {
+    contacts = await Contact.find()
+      .populate({
+        path: 'client_id',
+        select: 'name company_id',
+        populate: { path: 'company_id', select: 'name' }
+      });
+  } else {
+    // Find all clients belonging to the user's company
+    const clients = await Client.find({ company_id: req.user.company_id }).select('_id');
+    const clientIds = clients.map(client => client._id);
+    
+    contacts = await Contact.find({ client_id: { $in: clientIds } })
+      .populate({
+        path: 'client_id',
+        select: 'name company_id',
+        populate: { path: 'company_id', select: 'name' }
+      });
   }
-};
+    
+  res.json(contacts);
+});
 
 /**
  * Get contact by ID
  * @route GET /api/contacts/:id
  * @access Private
  */
-const getContactById = async (req, res) => {
-  try {
-    const contact = await Contact.findById(req.params.id).populate('client', 'nom');
-    if (!contact) {
-      return res.status(404).json({ message: 'Contact not found' });
-    }
-    res.status(200).json(contact);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+exports.getContactById = asyncHandler(async (req, res) => {
+  const contact = await Contact.findById(req.params.id)
+    .populate({
+      path: 'client_id',
+      select: 'name company_id',
+      populate: { path: 'company_id', select: 'name' }
+    });
+  
+  if (!contact) {
+    res.status(404);
+    throw new Error('Contact not found');
   }
-};
+  
+  // Check if user has permission to view this contact
+  if (req.user.role !== 'super_admin') {
+    const client = await Client.findById(contact.client_id);
+    if (!client || client.company_id.toString() !== req.user.company_id.toString()) {
+      res.status(403);
+      throw new Error('Not authorized to access this contact');
+    }
+  }
+  
+  res.json(contact);
+});
 
 /**
  * Create a new contact
  * @route POST /api/contacts
  * @access Private
  */
-const createContact = async (req, res) => {
-  try {
-    const newContact = await Contact.create(req.body);
-    res.status(201).json(newContact);
-  } catch (error) {
-    res.status(400).json({ error: error.message });
+exports.createContact = asyncHandler(async (req, res) => {
+  const { client_id, name, prenom, email, telephone, fonction } = req.body;
+  
+  // Validate that client_id is provided
+  if (!client_id) {
+    res.status(400);
+    throw new Error('Client ID is required');
   }
-};
+  
+  // Verify that the client exists and belongs to the user's company
+  const client = await Client.findById(client_id);
+  if (!client) {
+    res.status(404);
+    throw new Error('Client not found');
+  }
+  
+  // If not super_admin, can only create contacts for clients in their own company
+  if (req.user.role !== 'super_admin') {
+    if (client.company_id.toString() !== req.user.company_id.toString()) {
+      res.status(403);
+      throw new Error('You can only create contacts for clients in your own company');
+    }
+  }
+  
+  const contact = await Contact.create({
+    client_id,
+    name,
+    prenom,
+    email,
+    telephone,
+    fonction
+  });
+  
+  if (contact) {
+    res.status(201).json(contact);
+  } else {
+    res.status(400);
+    throw new Error('Invalid contact data');
+  }
+});
 
 /**
  * Update a contact
  * @route PUT /api/contacts/:id
  * @access Private
  */
-const updateContact = async (req, res) => {
-  try {
-    const updatedContact = await Contact.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true, runValidators: true }
-    );
-    
-    if (!updatedContact) {
-      return res.status(404).json({ message: 'Contact not found' });
+exports.updateContact = asyncHandler(async (req, res) => {
+  const contact = await Contact.findById(req.params.id);
+  
+  if (!contact) {
+    res.status(404);
+    throw new Error('Contact not found');
+  }
+  
+  // Check if user has permission to update this contact
+  if (req.user.role !== 'super_admin') {
+    const client = await Client.findById(contact.client_id);
+    if (!client || client.company_id.toString() !== req.user.company_id.toString()) {
+      res.status(403);
+      throw new Error('Not authorized to update this contact');
+    }
+  }
+  
+  // If client_id is being changed, verify that the client exists and user has permission
+  if (req.body.client_id) {
+    const newClient = await Client.findById(req.body.client_id);
+    if (!newClient) {
+      res.status(404);
+      throw new Error('Client not found');
     }
     
-    res.status(200).json(updatedContact);
-  } catch (error) {
-    res.status(400).json({ error: error.message });
+    if (req.user.role !== 'super_admin' && newClient.company_id.toString() !== req.user.company_id.toString()) {
+      res.status(403);
+      throw new Error('Not authorized to assign contact to a client from another company');
+    }
   }
-};
+  
+  const updatedContact = await Contact.findByIdAndUpdate(
+    req.params.id,
+    req.body,
+    { new: true, runValidators: true }
+  );
+  
+  res.json(updatedContact);
+});
 
 /**
  * Delete a contact
  * @route DELETE /api/contacts/:id
  * @access Private
  */
-const deleteContact = async (req, res) => {
-  try {
-    const deletedContact = await Contact.findByIdAndDelete(req.params.id);
-    
-    if (!deletedContact) {
-      return res.status(404).json({ message: 'Contact not found' });
-    }
-    
-    res.status(200).json({ message: 'Contact deleted successfully' });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+exports.deleteContact = asyncHandler(async (req, res) => {
+  const contact = await Contact.findById(req.params.id);
+  
+  if (!contact) {
+    res.status(404);
+    throw new Error('Contact not found');
   }
-};
-
-module.exports = {
-  getContacts,
-  getContactById,
-  createContact,
-  updateContact,
-  deleteContact
-}; 
+  
+  // Check if user has permission to delete this contact
+  if (req.user.role !== 'super_admin') {
+    const client = await Client.findById(contact.client_id);
+    if (!client || client.company_id.toString() !== req.user.company_id.toString()) {
+      res.status(403);
+      throw new Error('Not authorized to delete this contact');
+    }
+  }
+  
+  await contact.deleteOne();
+  res.json({ message: 'Contact removed' });
+}); 

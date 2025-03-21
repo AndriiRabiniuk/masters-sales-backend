@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { protect } = require('../middleware/authMiddleware');
+const { protect, authorize } = require('../middleware/authMiddleware');
 const {
   getNotes,
   getNoteById,
@@ -53,6 +53,8 @@ router.get('/', protect, getNotes);
  *         description: Note not found
  *       401:
  *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Not authorized to access this note
  */
 router.get('/:id', protect, getNoteById);
 
@@ -71,14 +73,15 @@ router.get('/:id', protect, getNoteById);
  *           schema:
  *             type: object
  *             required:
- *               - content
+ *               - client_id
+ *               - contenu
  *             properties:
- *               content:
+ *               client_id:
  *                 type: string
- *               clientId:
+ *                 description: ID of the client this note is related to (client must belong to user's company)
+ *               contenu:
  *                 type: string
- *               leadId:
- *                 type: string
+ *                 description: Content of the note
  *     responses:
  *       201:
  *         description: Note created
@@ -86,6 +89,8 @@ router.get('/:id', protect, getNoteById);
  *         description: Invalid data
  *       401:
  *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Not authorized to create notes for this client
  */
 router.post('/', protect, createNote);
 
@@ -109,6 +114,13 @@ router.post('/', protect, createNote);
  *         application/json:
  *           schema:
  *             type: object
+ *             properties:
+ *               client_id:
+ *                 type: string
+ *                 description: ID of the client this note is related to (client must belong to user's company)
+ *               contenu:
+ *                 type: string
+ *                 description: Content of the note
  *     responses:
  *       200:
  *         description: Note updated
@@ -116,6 +128,8 @@ router.post('/', protect, createNote);
  *         description: Note not found
  *       401:
  *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Not authorized to update this note
  */
 router.put('/:id', protect, updateNote);
 
@@ -140,6 +154,8 @@ router.put('/:id', protect, updateNote);
  *         description: Note not found
  *       401:
  *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Not authorized to delete this note
  */
 router.delete('/:id', protect, deleteNote);
 

@@ -1,12 +1,12 @@
 const mongoose = require('mongoose');
 
 const contactSchema = new mongoose.Schema({
-  client: {
+  client_id: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Client',
     required: true,
   },
-  nom: {
+  name: {
     type: String,
     required: true,
     trim: true,

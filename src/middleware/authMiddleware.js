@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 const asyncHandler = require('express-async-handler');
-const User = require('../models/userModel');
+const User = require('../models/User');
 
 /**
  * Middleware to protect routes by verifying JWT token
@@ -60,13 +60,55 @@ const protect = asyncHandler(async (req, res, next) => {
 });
 
 /**
+ * Middleware to restrict access to super_admin users
+ * @route Middleware for super_admin-only routes
+ * @access Private -> Super Admin only
+ */
+const isSuperAdmin = (req, res, next) => {
+  if (req.user && req.user.role === 'super_admin') {
+    next();
+  } else {
+    res.status(403);
+    throw new Error('Not authorized as a super admin');
+  }
+};
+
+/**
  * Middleware to restrict access to admin users
  * @route Middleware for admin-only routes
  * @access Private -> Admin only
  */
-const admin = (req, res, next) => {
+const isAdmin = (req, res, next) => {
   if (req.user && req.user.role === 'admin') {
     next();
+  } else {
+    res.status(403);
+    throw new Error('Not authorized as an admin');
+  }
+};
+
+/**
+ * Middleware to restrict access to company admins or super admins
+ * @route Middleware for company admin routes
+ * @access Private -> Company Admin or Super Admin
+ */
+const isCompanyAdmin = (req, res, next) => {
+  if (req.user && (req.user.role === 'admin' || req.user.role === 'super_admin')) {
+    if (req.user.role === 'admin' && req.params.id) {
+      // For admins, ensure they are accessing their own company
+      if (req.user.company_id && req.user.company_id.toString() === req.params.id) {
+        next();
+      } else {
+        res.status(403);
+        throw new Error('Not authorized to access this company');
+      }
+    } else if (req.user.role === 'super_admin') {
+      // Super admins can access any company
+      next();
+    } else {
+      res.status(403);
+      throw new Error('Company ID is required');
+    }
   } else {
     res.status(403);
     throw new Error('Not authorized as an admin');
@@ -99,4 +141,4 @@ const authorize = (roles = []) => {
   };
 };
 
-module.exports = { protect, admin, authorize }; 
+module.exports = { protect, isSuperAdmin, isAdmin, isCompanyAdmin, authorize }; 

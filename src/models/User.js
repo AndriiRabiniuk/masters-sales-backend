@@ -2,10 +2,14 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 
 const userSchema = new mongoose.Schema({
-  username: {
+  company_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Company',
+    // This can be null for super_admin
+  },
+  name: {
     type: String,
     required: true,
-    unique: true,
     trim: true,
   },
   email: {
@@ -22,8 +26,8 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['admin', 'user', 'manager'],
-    default: 'user',
+    enum: ['super_admin', 'admin', 'manager', 'sales', 'support'],
+    default: 'sales',
   },
   created_at: {
     type: Date,

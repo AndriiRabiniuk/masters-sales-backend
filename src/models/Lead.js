@@ -1,12 +1,17 @@
 const mongoose = require('mongoose');
 
 const leadSchema = new mongoose.Schema({
-  client: {
+  user_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+  },
+  client_id: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Client',
     required: true,
   },
-  nom: {
+  name: {
     type: String,
     required: true,
     trim: true,
@@ -14,13 +19,13 @@ const leadSchema = new mongoose.Schema({
   source: {
     type: String,
     trim: true,
-    enum: ['website', 'referral', 'event', 'social', 'direct', 'other'],
-    default: 'other',
+    enum: ['website', 'referral', 'event'],
+    default: 'website',
   },
   statut: {
     type: String,
     trim: true,
-    enum: ['new', 'contacted', 'qualified', 'proposal', 'negotiation', 'won', 'lost'],
+    enum: ['new', 'contacted', 'won', 'lost'],
     default: 'new',
   },
   valeur_estimee: {

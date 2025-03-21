@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 const asyncHandler = require('express-async-handler');
-const User = require('../models/userModel');
+const User = require('../models/User');
 const bcrypt = require('bcrypt');
 
 // Generate JWT tokens
@@ -26,18 +26,16 @@ const generateTokens = (userId) => {
 // @route   POST /api/auth/register
 // @access  Public
 const registerUser = asyncHandler(async (req, res) => {
-  const { username, email, password, role } = req.body;
+  const { name, email, password, role, company_id } = req.body;
 
   // Validation
-  if (!username || !email || !password) {
+  if (!name || !email || !password) {
     res.status(400);
     throw new Error('Please add all required fields');
   }
 
   // Check if user already exists
-  const userExists = await User.findOne({ 
-    $or: [{ email }, { username }] 
-  });
+  const userExists = await User.findOne({ email });
 
   if (userExists) {
     res.status(400);
@@ -46,29 +44,30 @@ const registerUser = asyncHandler(async (req, res) => {
 
   // Create user
   const user = await User.create({
-    username,
+    name,
     email,
     password, // Will be hashed by the model pre-save hook
-    role: role || 'user' // Default to 'user' role
+    role: role || 'sales', // Default to sales if not specified
+    company_id
   });
 
   if (user) {
-    // Generate tokens
     const { accessToken, refreshToken } = generateTokens(user._id);
 
-    // Set refresh token in HTTP-only cookie
+    // Set refresh token as HTTP-only cookie for security
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+      secure: process.env.NODE_ENV === 'production', // Secure in production
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
     });
 
+    // Return user info and access token
     res.status(201).json({
       _id: user._id,
-      username: user.username,
+      name: user.name,
       email: user.email,
       role: user.role,
+      company_id: user.company_id,
       token: accessToken
     });
   } else {
@@ -77,33 +76,32 @@ const registerUser = asyncHandler(async (req, res) => {
   }
 });
 
-// @desc    Authenticate a user
+// @desc    Login user
 // @route   POST /api/auth/login
 // @access  Public
 const loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
-  // Check for email
+  // Check for user email
   const user = await User.findOne({ email });
 
-  // Check user and password match
+  // Check if user exists and password matches
   if (user && (await user.comparePassword(password))) {
-    // Generate tokens
     const { accessToken, refreshToken } = generateTokens(user._id);
 
-    // Set refresh token in HTTP-only cookie
+    // Set refresh token as HTTP-only cookie
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+      maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
     res.json({
       _id: user._id,
-      username: user.username,
+      name: user.name,
       email: user.email,
       role: user.role,
+      company_id: user.company_id,
       token: accessToken
     });
   } else {
@@ -112,102 +110,30 @@ const loginUser = asyncHandler(async (req, res) => {
   }
 });
 
-// @desc    Get user profile
-// @route   GET /api/auth/profile
-// @access  Private
-const getUserProfile = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user._id).select('-password');
-  
-  if (user) {
-    res.json({
-      _id: user._id,
-      username: user.username,
-      email: user.email,
-      role: user.role,
-      created_at: user.created_at
-    });
-  } else {
-    res.status(404);
-    throw new Error('User not found');
-  }
-});
-
-// @desc    Update user profile
-// @route   PUT /api/auth/profile
-// @access  Private
-const updateUserProfile = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user._id);
-
-  if (!user) {
-    res.status(404);
-    throw new Error('User not found');
-  }
-
-  // Check if username is being updated and if it already exists
-  if (req.body.username && req.body.username !== user.username) {
-    const existingUsername = await User.findOne({ username: req.body.username });
-    if (existingUsername) {
-      res.status(400);
-      throw new Error('Username already exists');
-    }
-  }
-
-  // Check if email is being updated and if it already exists
-  if (req.body.email && req.body.email !== user.email) {
-    const existingEmail = await User.findOne({ email: req.body.email });
-    if (existingEmail) {
-      res.status(400);
-      throw new Error('Email already exists');
-    }
-  }
-
-  // Don't allow role changes through this endpoint
-  delete req.body.role;
-  
-  // Update user fields
-  user.username = req.body.username || user.username;
-  user.email = req.body.email || user.email;
-
-  // Only hash password if it's being changed
-  if (req.body.password) {
-    user.password = req.body.password; // Will be hashed by the model pre-save hook
-  }
-
-  const updatedUser = await user.save();
-
-  res.json({
-    _id: updatedUser._id,
-    username: updatedUser.username,
-    email: updatedUser.email,
-    role: updatedUser.role
-  });
-});
-
-// @desc    Refresh access token
+// @desc    Refresh access token using refresh token
 // @route   POST /api/auth/refresh-token
-// @access  Public
-const refreshAccessToken = asyncHandler(async (req, res) => {
+// @access  Public (with valid refresh token)
+const refreshToken = asyncHandler(async (req, res) => {
   // Get refresh token from cookie
   const refreshToken = req.cookies.refreshToken;
 
   if (!refreshToken) {
     res.status(401);
-    throw new Error('No refresh token provided');
+    throw new Error('Refresh token not found');
   }
 
   try {
     // Verify refresh token
     const decoded = jwt.verify(
-      refreshToken, 
+      refreshToken,
       process.env.REFRESH_TOKEN_SECRET || process.env.JWT_SECRET
     );
 
-    // Get user
-    const user = await User.findById(decoded.id).select('-password');
-
+    // Check if user exists
+    const user = await User.findById(decoded.id);
     if (!user) {
       res.status(401);
-      throw new Error('Invalid refresh token - user not found');
+      throw new Error('User not found');
     }
 
     // Generate new access token
@@ -224,57 +150,106 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
   }
 });
 
-// @desc    Logout user / clear cookie
+// @desc    Logout user
 // @route   POST /api/auth/logout
-// @access  Public
+// @access  Private
 const logoutUser = asyncHandler(async (req, res) => {
-  // Clear the refresh token cookie
-  res.cookie('refreshToken', '', {
-    httpOnly: true,
-    expires: new Date(0)
-  });
-
+  // Clear refresh token cookie
+  res.clearCookie('refreshToken');
+  
   res.json({ message: 'Logged out successfully' });
 });
 
-// @desc    Change password
-// @route   PUT /api/auth/change-password
+// @desc    Get current user profile
+// @route   GET /api/auth/profile
 // @access  Private
-const changePassword = asyncHandler(async (req, res) => {
-  const { currentPassword, newPassword } = req.body;
-
-  if (!currentPassword || !newPassword) {
-    res.status(400);
-    throw new Error('Please provide current and new password');
+const getUserProfile = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id).select('-password');
+  
+  if (user) {
+    res.json(user);
+  } else {
+    res.status(404);
+    throw new Error('User not found');
   }
+});
 
-  // Get user
+// @desc    Update user profile
+// @route   PUT /api/auth/profile
+// @access  Private
+const updateUserProfile = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user._id);
+
+  if (user) {
+    user.name = req.body.name || user.name;
+    user.email = req.body.email || user.email;
+    
+    // Only update password if provided
+    if (req.body.password) {
+      user.password = req.body.password;
+    }
+
+    const updatedUser = await user.save();
+
+    res.json({
+      _id: updatedUser._id,
+      name: updatedUser.name,
+      email: updatedUser.email,
+      role: updatedUser.role,
+      company_id: updatedUser.company_id
+    });
+  } else {
+    res.status(404);
+    throw new Error('User not found');
+  }
+});
+
+// @desc    Get all users (admin only)
+// @route   GET /api/auth/users
+// @access  Private/Admin
+const getUsers = asyncHandler(async (req, res) => {
+  let query = {};
+  
+  // If admin, only get users from their company
+  if (req.user.role === 'admin' && req.user.company_id) {
+    query.company_id = req.user.company_id;
+  }
+  // Super admins can see all users
+  
+  const users = await User.find(query).select('-password');
+  res.json(users);
+});
+
+// @desc    Delete user (admin only)
+// @route   DELETE /api/auth/users/:id
+// @access  Private/Admin
+const deleteUser = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.params.id);
 
   if (!user) {
     res.status(404);
     throw new Error('User not found');
   }
 
-  // Check if current password is correct
-  if (!(await user.comparePassword(currentPassword))) {
-    res.status(401);
-    throw new Error('Current password is incorrect');
+  // Check if admin has permission to delete this user
+  if (req.user.role === 'admin' && req.user.company_id) {
+    if (user.company_id && user.company_id.toString() !== req.user.company_id.toString()) {
+      res.status(403);
+      throw new Error('Not authorized to delete this user');
+    }
   }
 
-  // Set new password
-  user.password = newPassword; // Will be hashed by the model pre-save hook
-  await user.save();
-
-  res.json({ message: 'Password updated successfully' });
+  await user.deleteOne();
+  res.json({ message: 'User removed' });
 });
 
 module.exports = {
   registerUser,
   loginUser,
+  refreshToken,
+  logoutUser,
   getUserProfile,
   updateUserProfile,
-  refreshAccessToken,
-  logoutUser,
-  changePassword
+  getUsers,
+  deleteUser
 }; 

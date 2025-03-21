@@ -1,17 +1,21 @@
-const Client = require('./Client');
-const Contact = require('./Contact');
-const Lead = require('./Lead');
-const Interaction = require('./Interaction');
-const Task = require('./Task');
-const Note = require('./Note');
 const User = require('./User');
+const Company = require('./Company');
+const Client = require('./Client');
+const Lead = require('./Lead');
+const Contact = require('./Contact');
+const Note = require('./Note');
+const Interaction = require('./Interaction');
+const InteractionContact = require('./InteractionContact');
+const Task = require('./Task');
 
 module.exports = {
+  User,
+  Company,
   Client,
-  Contact,
   Lead,
-  Interaction,
-  Task,
+  Contact,
   Note,
-  User
+  Interaction,
+  InteractionContact,
+  Task
 }; 

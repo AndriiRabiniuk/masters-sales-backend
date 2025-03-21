@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const noteSchema = new mongoose.Schema({
-  client: {
+  client_id: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Client',
     required: true,

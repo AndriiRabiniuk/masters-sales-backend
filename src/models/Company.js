@@ -1,14 +1,10 @@
 const mongoose = require('mongoose');
 
-const clientSchema = new mongoose.Schema({
-  company_id: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Company',
-    required: true,
-  },
+const companySchema = new mongoose.Schema({
   name: {
     type: String,
     required: true,
+    unique: true,
     trim: true,
   },
   SIREN: {
@@ -50,6 +46,6 @@ const clientSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-const Client = mongoose.model('Client', clientSchema);
+const Company = mongoose.model('Company', companySchema);
 
-module.exports = Client; 
+module.exports = Company; 
