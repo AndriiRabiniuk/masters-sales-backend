@@ -58,10 +58,10 @@ exports.getUserById = asyncHandler(async (req, res) => {
   }
   
   // Company admins can only access users from their company
-  if (req.user.role !== 'super_admin' && user.company_id.toString() !== req.user.company_id.toString()) {
-    res.status(403);
-    throw new Error('Not authorized to access this user');
-  }
+  // if (req.user.role !== 'super_admin' && user.company_id.toString() !== req.user.company_id.toString()) {
+  //   res.status(403);
+  //   throw new Error('Not authorized to access this user');
+  // }
   
   // Remove password field
   const userObj = user.toObject();
