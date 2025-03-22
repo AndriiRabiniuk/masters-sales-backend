@@ -1,5 +1,6 @@
 const { Note, Client } = require('../models');
 const asyncHandler = require('express-async-handler');
+const { paginateResults } = require('../utils/paginationUtils');
 
 /**
  * Get all notes
@@ -7,30 +8,31 @@ const asyncHandler = require('express-async-handler');
  * @access Private
  */
 exports.getNotes = asyncHandler(async (req, res) => {
-  // If not super_admin, only show notes from clients in their company
-  let notes;
+  const { page, limit, search } = req.query;
   
-  if (req.user.role === 'super_admin') {
-    notes = await Note.find()
-      .populate({
-        path: 'client_id',
-        select: 'name company_id',
-        populate: { path: 'company_id', select: 'name' }
-      });
-  } else {
-    // Find all clients belonging to the user's company
-    const clients = await Client.find({ company_id: req.user.company_id }).select('_id');
-    const clientIds = clients.map(client => client._id);
-    
-    notes = await Note.find({ client_id: { $in: clientIds } })
-      .populate({
-        path: 'client_id',
-        select: 'name company_id',
-        populate: { path: 'company_id', select: 'name' }
-      });
-  }
-    
-  res.json(notes);
+  // Define which fields to search in if search parameter is provided
+  const searchFields = search ? ['content'] : [];
+  
+  // Filter by the authenticated user's company
+  const user_id = req.user._id;
+  
+  // Prepare the base query
+  const query = { user_id };
+  
+  // Get paginated results
+  const results = await paginateResults(Note, query, {
+    page,
+    limit,
+    search,
+    searchFields,
+    populate: ['client_id', 'lead_id'], // Populate related information
+    sort: { created_at: -1 } // Sort by most recent first
+  });
+  
+  // Rename data to notes to match desired response format
+  const { data: notes, ...rest } = results;
+  
+  res.json({ notes, ...rest });
 });
 
 /**

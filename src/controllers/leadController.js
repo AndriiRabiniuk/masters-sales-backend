@@ -1,5 +1,6 @@
 const { Lead, Client } = require('../models');
 const asyncHandler = require('express-async-handler');
+const { paginateResults } = require('../utils/paginationUtils');
 
 /**
  * Get all leads
@@ -7,32 +8,31 @@ const asyncHandler = require('express-async-handler');
  * @access Private
  */
 exports.getLeads = asyncHandler(async (req, res) => {
-  // If not super_admin, only show leads from clients in their company
-  let leads;
+  const { page, limit, search } = req.query;
   
-  if (req.user.role === 'super_admin') {
-    leads = await Lead.find()
-      .populate('user_id', 'name')
-      .populate({
-        path: 'client_id',
-        select: 'name company_id',
-        populate: { path: 'company_id', select: 'name' }
-      });
-  } else {
-    // Find all clients belonging to the user's company
-    const clients = await Client.find({ company_id: req.user.company_id }).select('_id');
-    const clientIds = clients.map(client => client._id);
-    
-    leads = await Lead.find({ client_id: { $in: clientIds } })
-      .populate('user_id', 'name')
-      .populate({
-        path: 'client_id',
-        select: 'name company_id',
-        populate: { path: 'company_id', select: 'name' }
-      });
-  }
+  // Define which fields to search in if search parameter is provided
+  const searchFields = search ? ['name', 'source', 'statut'] : [];
   
-  res.json(leads);
+  // Filter by the authenticated user's company
+  const user_id = req.user._id;
+  
+  // Prepare the base query
+  const query = { user_id };
+  
+  // Get paginated results
+  const results = await paginateResults(Lead, query, {
+    page,
+    limit,
+    search,
+    searchFields,
+    populate: ['client_id'], // Populate client information
+    sort: { created_at: -1 } // Sort by most recent first
+  });
+  
+  // Rename data to leads to match desired response format
+  const { data: leads, ...rest } = results;
+  
+  res.json({ leads, ...rest });
 });
 
 /**

@@ -1,5 +1,6 @@
 const { Client } = require('../models');
 const asyncHandler = require('express-async-handler');
+const { paginateResults } = require('../utils/paginationUtils');
 
 // @desc    Create a new client
 // @route   POST /api/clients
@@ -53,15 +54,31 @@ exports.createClient = asyncHandler(async (req, res) => {
 // @route   GET /api/clients
 // @access  Private
 exports.getClients = asyncHandler(async (req, res) => {
-  let query = {};
+  const { page, limit, search } = req.query;
   
-  // If not super_admin, only show clients from their company
-  if (req.user.role !== 'super_admin' && req.user.company_id) {
-    query.company_id = req.user.company_id;
-  }
+  // Define which fields to search in if search parameter is provided
+  const searchFields = search ? ['nom', 'SIREN', 'SIRET', 'code_postal'] : [];
   
-  const clients = await Client.find(query);
-  res.json(clients);
+  // Get company_id from authenticated user (assuming this is how you filter by company)
+  const company_id = req.user.company_id;
+  
+  // Prepare the base query
+  const query = company_id ? { company_id } : {};
+  
+  // Get paginated results
+  const results = await paginateResults(Client, query, {
+    page,
+    limit,
+    search,
+    searchFields,
+    populate: 'company_id', // Populate related fields if needed
+    sort: { createdAt: -1 } // Sort by most recent first
+  });
+  
+  // Rename data to clients to match desired response format
+  const { data: clients, ...rest } = results;
+  
+  res.json({ clients, ...rest });
 });
 
 // @desc    Get client by ID

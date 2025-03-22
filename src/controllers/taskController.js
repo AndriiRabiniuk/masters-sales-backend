@@ -1,21 +1,44 @@
 const { Task } = require('../models');
+const { paginateResults } = require('../utils/paginationUtils');
+const asyncHandler = require('express-async-handler');
 
 /**
  * Get all tasks
  * @route GET /api/tasks
  * @access Private
  */
-const getTasks = async (req, res) => {
-  try {
-    const tasks = await Task.find()
-      .populate('assignedTo', 'username')
-      .populate('client', 'nom')
-      .populate('lead', 'nom');
-    res.status(200).json(tasks);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+const getTasks = asyncHandler(async (req, res) => {
+  const { page, limit, search, status } = req.query;
+  
+  // Define which fields to search in if search parameter is provided
+  const searchFields = search ? ['title', 'description'] : [];
+  
+  // Filter by the authenticated user's tasks
+  const createdBy = req.user._id;
+  
+  // Prepare the base query
+  const query = { createdBy };
+  
+  // Add status filter if provided
+  if (status) {
+    query.status = status;
   }
-};
+  
+  // Get paginated results
+  const results = await paginateResults(Task, query, {
+    page,
+    limit,
+    search,
+    searchFields,
+    populate: ['assignedTo', 'client', 'lead'], // Populate related information
+    sort: { dueDate: 1 } // Sort by due date, closest first
+  });
+  
+  // Rename data to tasks to match desired response format
+  const { data: tasks, ...rest } = results;
+  
+  res.json({ tasks, ...rest });
+});
 
 /**
  * Get task by ID

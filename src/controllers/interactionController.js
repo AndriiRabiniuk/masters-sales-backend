@@ -1,5 +1,6 @@
 const { Interaction, Lead, InteractionContact, Contact } = require('../models');
 const asyncHandler = require('express-async-handler');
+const { paginateResults } = require('../utils/paginationUtils');
 
 /**
  * Get all interactions
@@ -7,37 +8,42 @@ const asyncHandler = require('express-async-handler');
  * @access Private
  */
 exports.getInteractions = asyncHandler(async (req, res) => {
-  let query = {};
+  const { page, limit, search } = req.query;
   
-  // If not super_admin, only show interactions related to leads in their company
-  if (req.user.role !== 'super_admin' && req.user.company_id) {
-    // First get all leads for this company
-    const leads = await Lead.find({ company_id: req.user.company_id });
-    const leadIds = leads.map(lead => lead._id);
-    
-    // Then filter interactions by these lead IDs
-    query.lead_id = { $in: leadIds };
-  }
+  // Define which fields to search in if search parameter is provided
+  const searchFields = search ? ['type_interaction', 'description'] : [];
   
-  const interactions = await Interaction.find(query)
-    .populate('lead_id', 'name');
+  // Get user's company from authentication
+  const user = req.user;
   
-  // Get contact information for each interaction
-  const interactionsWithContacts = await Promise.all(
-    interactions.map(async (interaction) => {
-      const interactionContacts = await InteractionContact.find({ interaction_id: interaction._id })
-        .populate('contact_id', 'name prenom email telephone');
-      
-      const contacts = interactionContacts.map(ic => ic.contact_id);
-      
-      return {
-        ...interaction.toObject(),
-        contacts
-      };
-    })
-  );
+  // Build query to filter by user's company
+  // This assumes you have a way to filter interactions by company
+  // You might need to adjust this logic based on your actual data model
+  const query = {};
   
-  res.json(interactionsWithContacts);
+  // Get paginated results
+  const results = await paginateResults(Interaction, query, {
+    page,
+    limit,
+    search,
+    searchFields,
+    populate: [
+      {
+        path: 'lead_id',
+        select: '_id name'
+      },
+      {
+        path: 'contacts',
+        select: '_id nom prenom'
+      }
+    ],
+    sort: { created_at: -1 } // Sort by most recent first
+  });
+  
+  // Rename data to interactions to match desired response format
+  const { data: interactions, ...rest } = results;
+  
+  res.json({ interactions, ...rest });
 });
 
 /**
