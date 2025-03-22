@@ -139,16 +139,12 @@ exports.updateUser = asyncHandler(async (req, res) => {
   }
   
   // Company admins can't change user to admin or super_admin
-  if (req.user.role !== 'super_admin' && (role === 'super_admin' || role === 'admin')) {
+  if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && (role === 'super_admin' || role === 'admin')) {
     res.status(403);
     throw new Error('Not authorized to assign this role');
   }
   
-  // Don't allow changing company_id for any user
-  if (req.body.company_id) {
-    res.status(403);
-    throw new Error('Changing company_id is not allowed');
-  }
+ 
   
   // Update user fields
   user.name = name || user.name;
