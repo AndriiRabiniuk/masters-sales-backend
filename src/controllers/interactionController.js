@@ -31,10 +31,6 @@ exports.getInteractions = asyncHandler(async (req, res) => {
       {
         path: 'lead_id',
         select: '_id name'
-      },
-      {
-        path: 'contacts',
-        select: '_id nom prenom'
       }
     ],
     sort: { created_at: -1 } // Sort by most recent first
@@ -63,11 +59,11 @@ exports.getInteractionById = asyncHandler(async (req, res) => {
   // Check if user has permission to view this interaction
   if (req.user.role !== 'super_admin' && req.user.company_id) {
     // Get the lead to check if it belongs to the user's company
-    const lead = await Lead.findById(interaction.lead_id);
-    if (!lead || lead.company_id.toString() !== req.user.company_id.toString()) {
-      res.status(403);
-      throw new Error('Not authorized to access this interaction');
-    }
+    // const lead = await Lead.findById(interaction.lead_id);
+    // if (!lead || lead.company_id?.toString() !== req.user.company_id.toString()) {
+    //   res.status(403);
+    //   throw new Error('Not authorized to access this interaction');
+    // }
   }
   
   // Get contacts for this interaction

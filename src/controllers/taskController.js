@@ -1,4 +1,4 @@
-const { Task } = require('../models');
+const { Task, Interaction, Lead, Client } = require('../models');
 const { paginateResults } = require('../utils/paginationUtils');
 const asyncHandler = require('express-async-handler');
 
@@ -11,17 +11,37 @@ const getTasks = asyncHandler(async (req, res) => {
   const { page, limit, search, status } = req.query;
   
   // Define which fields to search in if search parameter is provided
-  const searchFields = search ? ['title', 'description'] : [];
+  const searchFields = search ? ['titre', 'description'] : [];
   
-  // Filter by the authenticated user's tasks
-  const createdBy = req.user._id;
+  // Get the user's company ID
+  const company_id = req.user.company_id;
   
-  // Prepare the base query
-  const query = { createdBy };
+  // Find all tasks associated with the user's company:
+  // 1. Get all clients in the company
+  // 2. Get all leads for those clients
+  // 3. Get all interactions for those leads
+  // 4. Get all tasks for those interactions
+  
+  // Step 1: Get clients in the company
+  const clients = await Client.find({ company_id });
+  const clientIds = clients.map(client => client._id);
+  
+  // Step 2: Get leads for these clients
+  const leads = await Lead.find({ client_id: { $in: clientIds } });
+  const leadIds = leads.map(lead => lead._id);
+  
+  // Step 3: Get interactions for these leads
+  const interactions = await Interaction.find({ lead_id: { $in: leadIds } });
+  const interactionIds = interactions.map(interaction => interaction._id);
+  
+  // Prepare the query to get tasks from these interactions
+  const query = { 
+    interaction_id: { $in: interactionIds } 
+  };
   
   // Add status filter if provided
   if (status) {
-    query.status = status;
+    query.statut = status;
   }
   
   // Get paginated results
@@ -30,8 +50,22 @@ const getTasks = asyncHandler(async (req, res) => {
     limit,
     search,
     searchFields,
-    populate: ['assignedTo', 'client', 'lead'], // Populate related information
-    sort: { dueDate: 1 } // Sort by due date, closest first
+    populate: [
+      { 
+        path: 'interaction_id', 
+        select: 'lead_id type_interaction date_interaction',
+        populate: {
+          path: 'lead_id',
+          select: 'name client_id',
+          populate: {
+            path: 'client_id',
+            select: 'name'
+          }
+        }
+      },
+      { path: 'assigned_to', select: 'username email' }
+    ],
+    sort: { due_date: 1 } // Sort by due date, closest first
   });
   
   // Rename data to tasks to match desired response format
@@ -45,83 +79,187 @@ const getTasks = asyncHandler(async (req, res) => {
  * @route GET /api/tasks/:id
  * @access Private
  */
-const getTaskById = async (req, res) => {
-  try {
-    const task = await Task.findById(req.params.id)
-      .populate('assignedTo', 'username')
-      .populate('client', 'nom')
-      .populate('lead', 'nom');
-    
-    if (!task) {
-      return res.status(404).json({ message: 'Task not found' });
-    }
-    res.status(200).json(task);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+const getTaskById = asyncHandler(async (req, res) => {
+  const task = await Task.findById(req.params.id)
+    .populate({
+      path: 'interaction_id',
+      select: 'lead_id type_interaction date_interaction',
+      populate: {
+        path: 'lead_id',
+        select: 'name client_id',
+        populate: {
+          path: 'client_id',
+          select: 'name company_id'
+        }
+      }
+    })
+    .populate('assigned_to', 'username email');
+  
+  if (!task) {
+    res.status(404);
+    throw new Error('Task not found');
   }
-};
+  
+  // Check if user has permission to view this task
+  if (req.user.role !== 'super_admin') {
+    const client = task.interaction_id.lead_id.client_id;
+    if (client.company_id.toString() !== req.user.company_id.toString()) {
+      res.status(403);
+      throw new Error('Not authorized to access this task');
+    }
+  }
+  
+  res.json(task);
+});
 
 /**
  * Create a new task
  * @route POST /api/tasks
  * @access Private
  */
-const createTask = async (req, res) => {
-  try {
-    // Add the current user as creator
-    const taskData = {
-      ...req.body,
-      createdBy: req.user.id
-    };
-    
-    const newTask = await Task.create(taskData);
-    res.status(201).json(newTask);
-  } catch (error) {
-    res.status(400).json({ error: error.message });
+const createTask = asyncHandler(async (req, res) => {
+  const { interaction_id, titre, description, statut, due_date, assigned_to } = req.body;
+  
+  // Validate that interaction_id is provided
+  if (!interaction_id) {
+    res.status(400);
+    throw new Error('Interaction ID is required');
   }
-};
+  
+  // Verify that the interaction exists and belongs to the user's company
+  const interaction = await Interaction.findById(interaction_id).populate({
+    path: 'lead_id',
+    populate: {
+      path: 'client_id'
+    }
+  });
+  
+  if (!interaction) {
+    res.status(404);
+    throw new Error('Interaction not found');
+  }
+  
+  // If not super_admin, can only create tasks for interactions in their own company
+  if (req.user.role !== 'super_admin') {
+    const client = interaction.lead_id.client_id;
+    if (client.company_id.toString() !== req.user.company_id.toString()) {
+      res.status(403);
+      throw new Error('You can only create tasks for interactions in your company');
+    }
+  }
+  
+  const task = await Task.create({
+    interaction_id,
+    titre,
+    description,
+    statut,
+    due_date,
+    assigned_to
+  });
+  
+  if (task) {
+    res.status(201).json(task);
+  } else {
+    res.status(400);
+    throw new Error('Invalid task data');
+  }
+});
 
 /**
  * Update a task
  * @route PUT /api/tasks/:id
  * @access Private
  */
-const updateTask = async (req, res) => {
-  try {
-    const updatedTask = await Task.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true, runValidators: true }
-    );
+const updateTask = asyncHandler(async (req, res) => {
+  const task = await Task.findById(req.params.id).populate({
+    path: 'interaction_id',
+    populate: {
+      path: 'lead_id',
+      populate: {
+        path: 'client_id'
+      }
+    }
+  });
+  
+  if (!task) {
+    res.status(404);
+    throw new Error('Task not found');
+  }
+  
+  // Check if user has permission to update this task
+  if (req.user.role !== 'super_admin') {
+    const client = task.interaction_id.lead_id.client_id;
+    if (client.company_id.toString() !== req.user.company_id.toString()) {
+      res.status(403);
+      throw new Error('Not authorized to update this task');
+    }
+  }
+  
+  // If interaction_id is being changed, verify that the interaction exists and user has permission
+  if (req.body.interaction_id) {
+    const newInteraction = await Interaction.findById(req.body.interaction_id).populate({
+      path: 'lead_id',
+      populate: {
+        path: 'client_id'
+      }
+    });
     
-    if (!updatedTask) {
-      return res.status(404).json({ message: 'Task not found' });
+    if (!newInteraction) {
+      res.status(404);
+      throw new Error('Interaction not found');
     }
     
-    res.status(200).json(updatedTask);
-  } catch (error) {
-    res.status(400).json({ error: error.message });
+    if (req.user.role !== 'super_admin') {
+      const client = newInteraction.lead_id.client_id;
+      if (client.company_id.toString() !== req.user.company_id.toString()) {
+        res.status(403);
+        throw new Error('Not authorized to assign task to an interaction from another company');
+      }
+    }
   }
-};
+  
+  const updatedTask = await Task.findByIdAndUpdate(
+    req.params.id,
+    req.body,
+    { new: true, runValidators: true }
+  );
+  
+  res.json(updatedTask);
+});
 
 /**
  * Delete a task
  * @route DELETE /api/tasks/:id
  * @access Private
  */
-const deleteTask = async (req, res) => {
-  try {
-    const deletedTask = await Task.findByIdAndDelete(req.params.id);
-    
-    if (!deletedTask) {
-      return res.status(404).json({ message: 'Task not found' });
+const deleteTask = asyncHandler(async (req, res) => {
+  const task = await Task.findById(req.params.id).populate({
+    path: 'interaction_id',
+    populate: {
+      path: 'lead_id',
+      populate: {
+        path: 'client_id'
+      }
     }
-    
-    res.status(200).json({ message: 'Task deleted successfully' });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  });
+  
+  if (!task) {
+    res.status(404);
+    throw new Error('Task not found');
   }
-};
+  
+  // Check if user has permission to delete this task
+  if (req.user.role !== 'super_admin') {
+    const client = task.interaction_id.lead_id.client_id;
+    if (client.company_id.toString() !== req.user.company_id.toString()) {
+      res.status(403);
+      throw new Error('Not authorized to delete this task');
+    }
+  }
+  
+  await task.deleteOne();
+  res.json({ message: 'Task deleted' });
+});
 
 module.exports = {
   getTasks,
