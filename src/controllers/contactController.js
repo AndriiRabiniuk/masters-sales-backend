@@ -11,13 +11,17 @@ exports.getContacts = asyncHandler(async (req, res) => {
   const { page, limit, search } = req.query;
   
   // Define which fields to search in if search parameter is provided
-  const searchFields = search ? ['nom', 'prenom', 'email', 'telephone', 'poste'] : [];
+  const searchFields = search ? ['name', 'prenom', 'email', 'telephone', 'fonction'] : [];
   
-  // Filter by the authenticated user's company
-  const user_id = req.user._id;
+  // Get the user's company ID
+  const company_id = req.user.company_id;
   
-  // Prepare the base query
-  const query = { user_id };
+  // Find all clients associated with the user's company
+  const clients = await Client.find({ company_id });
+  const clientIds = clients.map(client => client._id);
+  
+  // Prepare the query to get contacts from these clients
+  const query = { client_id: { $in: clientIds } };
   
   // Get paginated results
   const results = await paginateResults(Contact, query, {
@@ -25,7 +29,11 @@ exports.getContacts = asyncHandler(async (req, res) => {
     limit,
     search,
     searchFields,
-    populate: ['client_id'], // Populate client information
+    populate: {
+      path: 'client_id',
+      select: 'name company_id',
+      populate: { path: 'company_id', select: 'name' }
+    },
     sort: { created_at: -1 } // Sort by most recent first
   });
   
