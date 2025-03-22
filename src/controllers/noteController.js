@@ -11,13 +11,17 @@ exports.getNotes = asyncHandler(async (req, res) => {
   const { page, limit, search } = req.query;
   
   // Define which fields to search in if search parameter is provided
-  const searchFields = search ? ['content'] : [];
+  const searchFields = search ? ['contenu'] : [];
   
-  // Filter by the authenticated user's company
-  const user_id = req.user._id;
+  // Get the user's company_id
+  const userCompanyId = req.user.company_id;
   
-  // Prepare the base query
-  const query = { user_id };
+  // Find all clients that belong to the user's company
+  const clients = await Client.find({ company_id: userCompanyId }).select('_id');
+  const clientIds = clients.map(client => client._id);
+  
+  // Prepare the query to filter notes by clients belonging to user's company
+  const query = { client_id: { $in: clientIds } };
   
   // Get paginated results
   const results = await paginateResults(Note, query, {
@@ -25,7 +29,9 @@ exports.getNotes = asyncHandler(async (req, res) => {
     limit,
     search,
     searchFields,
-    populate: ['client_id', 'lead_id'], // Populate related information
+    populate: [
+      { path: 'client_id', select: 'name SIREN SIRET' }
+    ],
     sort: { created_at: -1 } // Sort by most recent first
   });
   
@@ -176,4 +182,48 @@ exports.deleteNote = asyncHandler(async (req, res) => {
   
   await note.deleteOne();
   res.json({ message: 'Note removed' });
+});
+
+/**
+ * Get notes by client ID
+ * @route GET /api/notes/client/:clientId
+ * @access Private
+ */
+exports.getNotesByClientId = asyncHandler(async (req, res) => {
+  const { clientId } = req.params;
+  const { page, limit, search } = req.query;
+  
+  // Find the client and verify it exists
+  const client = await Client.findById(clientId);
+  
+  if (!client) {
+    res.status(404);
+    throw new Error('Client not found');
+  }
+  
+  // Verify the client belongs to the user's company
+  if (req.user.role !== 'super_admin' && client.company_id.toString() !== req.user.company_id.toString()) {
+    res.status(403);
+    throw new Error('Not authorized to access notes for this client');
+  }
+  
+  // Define which fields to search in if search parameter is provided
+  const searchFields = search ? ['contenu'] : [];
+  
+  // Prepare the query to filter notes by the specific client
+  const query = { client_id: clientId };
+  
+  // Get paginated results
+  const results = await paginateResults(Note, query, {
+    page,
+    limit,
+    search,
+    searchFields,
+    sort: { created_at: -1 } // Sort by most recent first
+  });
+  
+  // Rename data to notes to match desired response format
+  const { data: notes, ...rest } = results;
+  
+  res.json({ notes, ...rest });
 }); 

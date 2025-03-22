@@ -18,6 +18,7 @@ const leadRoutes = require('./routes/leadRoutes');
 const interactionRoutes = require('./routes/interactionRoutes');
 const noteRoutes = require('./routes/noteRoutes');
 const taskRoutes = require('./routes/taskRoutes');
+const userRoutes = require('./routes/userRoutes');
 
 // Initialize Express app
 const app = express();
@@ -53,6 +54,7 @@ app.use('/api/leads', leadRoutes);
 app.use('/api/interactions', interactionRoutes);
 app.use('/api/notes', noteRoutes);
 app.use('/api/tasks', taskRoutes);
+app.use('/api/users', userRoutes);
 
 // Root route
 app.get('/', (req, res) => {

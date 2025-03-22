@@ -6,7 +6,8 @@ const {
   getNoteById,
   createNote,
   updateNote,
-  deleteNote
+  deleteNote,
+  getNotesByClientId
 } = require('../controllers/noteController');
 
 /**
@@ -158,5 +159,47 @@ router.put('/:id', protect, updateNote);
  *         description: Forbidden - Not authorized to delete this note
  */
 router.delete('/:id', protect, deleteNote);
+
+/**
+ * @swagger
+ * /api/notes/client/{clientId}:
+ *   get:
+ *     summary: Get all notes for a specific client
+ *     tags: [Notes]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: clientId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID of the client to get notes for
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *         description: Page number for pagination
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *         description: Number of items per page
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Search term to filter notes
+ *     responses:
+ *       200:
+ *         description: List of notes for the client
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Not authorized to access notes for this client
+ *       404:
+ *         description: Client not found
+ */
+router.get('/client/:clientId', protect, getNotesByClientId);
 
 module.exports = router; 
