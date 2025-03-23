@@ -6,7 +6,7 @@ const { paginateResults } = require('../utils/paginationUtils');
 // @route   POST /api/clients
 // @access  Private/Admin
 exports.createClient = asyncHandler(async (req, res) => {
-  const { 
+  let { 
     company_id, 
     name, 
     SIREN, 
@@ -27,7 +27,9 @@ exports.createClient = asyncHandler(async (req, res) => {
       throw new Error('You can only create clients for your own company');
     }
   }
-
+  if(req.user.role === 'super_admin' || req.user.role === 'admin'){
+    company_id = req.user.company_id;
+  }
   const client = await Client.create({
     company_id,
     name,
@@ -121,14 +123,11 @@ exports.updateClient = asyncHandler(async (req, res) => {
       throw new Error('Not authorized to update this client');
     }
   }
+  if (req.user.role === 'admin'){
+    req.body.company_id = req.user.company_id;
+  }
 
   // Don't allow changing company_id unless super_admin
-  if (req.body.company_id && req.user.role !== 'super_admin' && req.user.role !== 'admin') {
-    if (req.body.company_id.toString() !== client.company_id.toString()) {
-      res.status(403);
-      throw new Error('Not authorized to change company_id');
-    }
-  }
   
   const updatedClient = await Client.findByIdAndUpdate(
     req.params.id,
