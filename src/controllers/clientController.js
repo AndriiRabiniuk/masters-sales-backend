@@ -21,7 +21,7 @@ exports.createClient = asyncHandler(async (req, res) => {
   } = req.body;
 
   // If not super_admin, can only create clients for their own company
-  if (req.user.role !== 'super_admin' && req.user.company_id) {
+  if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && req.user.company_id) {
     if (!company_id || company_id.toString() !== req.user.company_id.toString()) {
       res.status(403);
       throw new Error('You can only create clients for your own company');
@@ -93,7 +93,7 @@ exports.getClientById = asyncHandler(async (req, res) => {
   }
   
   // Check if user has permission to view this client
-  if (req.user.role !== 'super_admin' && req.user.company_id) {
+  if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && req.user.company_id) {
     if (client.company_id.toString() !== req.user.company_id.toString()) {
       res.status(403);
       throw new Error('Not authorized to access this client');
@@ -115,7 +115,7 @@ exports.updateClient = asyncHandler(async (req, res) => {
   }
 
   // Check if user has permission to update this client
-  if (req.user.role !== 'super_admin' && req.user.company_id) {
+  if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && req.user.company_id) {
     if (client.company_id.toString() !== req.user.company_id.toString()) {
       res.status(403);
       throw new Error('Not authorized to update this client');
@@ -123,7 +123,7 @@ exports.updateClient = asyncHandler(async (req, res) => {
   }
 
   // Don't allow changing company_id unless super_admin
-  if (req.body.company_id && req.user.role !== 'super_admin') {
+  if (req.body.company_id && req.user.role !== 'super_admin' && req.user.role !== 'admin') {
     if (req.body.company_id.toString() !== client.company_id.toString()) {
       res.status(403);
       throw new Error('Not authorized to change company_id');
@@ -151,7 +151,7 @@ exports.deleteClient = asyncHandler(async (req, res) => {
   }
 
   // Check if user has permission to delete this client
-  if (req.user.role !== 'super_admin' && req.user.company_id) {
+  if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && req.user.company_id) {
     if (client.company_id.toString() !== req.user.company_id.toString()) {
       res.status(403);
       throw new Error('Not authorized to delete this client');

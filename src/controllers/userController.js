@@ -87,7 +87,7 @@ exports.createUser = asyncHandler(async (req, res) => {
   }
   
   // Company admins can't create admin or super_admin users
-  if (req.user.role !== 'super_admin' && (role === 'super_admin' || role === 'admin')) {
+  if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && req.user.company_id && (role === 'super_admin' || role === 'admin')) {
     res.status(403);
     throw new Error('Not authorized to create users with this role');
   }
@@ -133,13 +133,13 @@ exports.updateUser = asyncHandler(async (req, res) => {
   }
   
   // Company admins can only update users from their company
-  if (req.user.role !== 'super_admin' && user.company_id.toString() !== req.user.company_id.toString()) {
+  if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && req.user.company_id && user.company_id.toString() !== req.user.company_id.toString()) {
     res.status(403);
     throw new Error('Not authorized to update this user');
   }
   
   // Company admins can't change user to admin or super_admin
-  if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && (role === 'super_admin' || role === 'admin')) {
+  if (req.user.role !== 'super_admin'  && req.user.role !== 'admin' && (role === 'super_admin' || role === 'admin')) {
     res.status(403);
     throw new Error('Not authorized to assign this role');
   }
@@ -183,7 +183,7 @@ exports.deleteUser = asyncHandler(async (req, res) => {
   }
   
   // Company admins can only delete users from their company
-  if (req.user.role !== 'super_admin' && user.company_id.toString() !== req.user.company_id.toString()) {
+  if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && req.user.company_id && user.company_id.toString() !== req.user.company_id.toString()) {
     res.status(403);
     throw new Error('Not authorized to delete this user');
   }
@@ -195,7 +195,7 @@ exports.deleteUser = asyncHandler(async (req, res) => {
   }
   
   // Don't allow company admins to delete other admins
-  if (req.user.role !== 'super_admin' && user.role === 'admin') {
+  if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && user.role === 'admin') {
     res.status(403);
     throw new Error('Not authorized to delete an admin');
   }

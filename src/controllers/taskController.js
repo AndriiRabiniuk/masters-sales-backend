@@ -101,7 +101,7 @@ const getTaskById = asyncHandler(async (req, res) => {
   }
   
   // Check if user has permission to view this task
-  if (req.user.role !== 'super_admin') {
+  if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && req.user.company_id) {
     const client = task.interaction_id.lead_id.client_id;
     if (client.company_id.toString() !== req.user.company_id.toString()) {
       res.status(403);
@@ -140,7 +140,7 @@ const createTask = asyncHandler(async (req, res) => {
   }
   
   // If not super_admin, can only create tasks for interactions in their own company
-  if (req.user.role !== 'super_admin') {
+  if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && req.user.company_id) {
     const client = interaction.lead_id.client_id;
     if (client.company_id.toString() !== req.user.company_id.toString()) {
       res.status(403);
@@ -187,7 +187,7 @@ const updateTask = asyncHandler(async (req, res) => {
   }
   
   // Check if user has permission to update this task
-  if (req.user.role !== 'super_admin') {
+  if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && req.user.company_id) {
     const client = task.interaction_id.lead_id.client_id;
     if (client.company_id.toString() !== req.user.company_id.toString()) {
       res.status(403);
@@ -249,7 +249,7 @@ const deleteTask = asyncHandler(async (req, res) => {
   }
   
   // Check if user has permission to delete this task
-  if (req.user.role !== 'super_admin') {
+  if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && req.user.company_id) {
     const client = task.interaction_id.lead_id.client_id;
     if (client.company_id.toString() !== req.user.company_id.toString()) {
       res.status(403);

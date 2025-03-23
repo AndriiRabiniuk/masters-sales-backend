@@ -55,7 +55,7 @@ exports.getLeadById = asyncHandler(async (req, res) => {
   }
   
   // Check if user has permission to view this lead
-  if (req.user.role !== 'super_admin') {
+  if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && req.user.company_id) {
     const client = await Client.findById(lead.client_id);
     if (!client || client.company_id.toString() !== req.user.company_id.toString()) {
       res.status(403);
@@ -88,7 +88,7 @@ exports.createLead = asyncHandler(async (req, res) => {
   }
   
   // If not super_admin, can only create leads for clients in their own company
-  if (req.user.role !== 'super_admin') {
+  if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && req.user.company_id) {
     if (client.company_id.toString() !== req.user.company_id.toString()) {
       res.status(403);
       throw new Error('You can only create leads for clients in your own company');
@@ -127,7 +127,7 @@ exports.updateLead = asyncHandler(async (req, res) => {
   }
   
   // Check if user has permission to update this lead
-  if (req.user.role !== 'super_admin') {
+  if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && req.user.company_id) {
     const client = await Client.findById(lead.client_id);
     if (!client || client.company_id.toString() !== req.user.company_id.toString()) {
       res.status(403);
@@ -143,7 +143,7 @@ exports.updateLead = asyncHandler(async (req, res) => {
       throw new Error('Client not found');
     }
     
-    if (req.user.role !== 'super_admin' && newClient.company_id.toString() !== req.user.company_id.toString()) {
+    if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && req.user.company_id && newClient.company_id.toString() !== req.user.company_id.toString()) {
       res.status(403);
       throw new Error('Not authorized to assign lead to a client from another company');
     }
@@ -172,7 +172,7 @@ exports.deleteLead = asyncHandler(async (req, res) => {
   }
   
   // Check if user has permission to delete this lead
-  if (req.user.role !== 'super_admin') {
+  if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && req.user.company_id) {
     const client = await Client.findById(lead.client_id);
     if (!client || client.company_id.toString() !== req.user.company_id.toString()) {
       res.status(403);

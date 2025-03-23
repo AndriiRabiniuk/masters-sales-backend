@@ -62,7 +62,7 @@ exports.getContactById = asyncHandler(async (req, res) => {
   }
   
   // Check if user has permission to view this contact
-  if (req.user.role !== 'super_admin') {
+  if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && req.user.company_id) {
     const client = await Client.findById(contact.client_id);
     if (!client || client.company_id.toString() !== req.user.company_id.toString()) {
       res.status(403);
@@ -95,7 +95,7 @@ exports.createContact = asyncHandler(async (req, res) => {
   }
   
   // If not super_admin, can only create contacts for clients in their own company
-  if (req.user.role !== 'super_admin') {
+  if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && req.user.company_id) {
     if (client.company_id.toString() !== req.user.company_id.toString()) {
       res.status(403);
       throw new Error('You can only create contacts for clients in your own company');
@@ -133,7 +133,7 @@ exports.updateContact = asyncHandler(async (req, res) => {
   }
   
   // Check if user has permission to update this contact
-  if (req.user.role !== 'super_admin') {
+  if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && req.user.company_id) {
     const client = await Client.findById(contact.client_id);
     if (!client || client.company_id.toString() !== req.user.company_id.toString()) {
       res.status(403);
@@ -149,7 +149,7 @@ exports.updateContact = asyncHandler(async (req, res) => {
       throw new Error('Client not found');
     }
     
-    if (req.user.role !== 'super_admin' && newClient.company_id.toString() !== req.user.company_id.toString()) {
+    if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && newClient.company_id.toString() !== req.user.company_id.toString()) {
       res.status(403);
       throw new Error('Not authorized to assign contact to a client from another company');
     }
@@ -178,7 +178,7 @@ exports.deleteContact = asyncHandler(async (req, res) => {
   }
   
   // Check if user has permission to delete this contact
-  if (req.user.role !== 'super_admin') {
+  if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && req.user.company_id) {
     const client = await Client.findById(contact.client_id);
     if (!client || client.company_id.toString() !== req.user.company_id.toString()) {
       res.status(403);

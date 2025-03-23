@@ -60,7 +60,7 @@ exports.getNoteById = asyncHandler(async (req, res) => {
   }
   
   // Check if user has permission to view this note
-  if (req.user.role !== 'super_admin') {
+  if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && req.user.company_id) {
     const client = await Client.findById(note.client_id);
     if (!client || client.company_id.toString() !== req.user.company_id.toString()) {
       res.status(403);
@@ -93,7 +93,7 @@ exports.createNote = asyncHandler(async (req, res) => {
   }
   
   // If not super_admin, can only create notes for clients in their own company
-  if (req.user.role !== 'super_admin') {
+  if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && req.user.company_id) {
     if (client.company_id.toString() !== req.user.company_id.toString()) {
       res.status(403);
       throw new Error('You can only create notes for clients in your own company');
@@ -127,7 +127,7 @@ exports.updateNote = asyncHandler(async (req, res) => {
   }
   
   // Check if user has permission to update this note
-  if (req.user.role !== 'super_admin') {
+  if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && req.user.company_id) {
     const client = await Client.findById(note.client_id);
     if (!client || client.company_id.toString() !== req.user.company_id.toString()) {
       res.status(403);
@@ -143,7 +143,7 @@ exports.updateNote = asyncHandler(async (req, res) => {
       throw new Error('Client not found');
     }
     
-    if (req.user.role !== 'super_admin' && newClient.company_id.toString() !== req.user.company_id.toString()) {
+    if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && req.user.company_id && newClient.company_id.toString() !== req.user.company_id.toString()) {
       res.status(403);
       throw new Error('Not authorized to assign note to a client from another company');
     }
@@ -172,7 +172,7 @@ exports.deleteNote = asyncHandler(async (req, res) => {
   }
   
   // Check if user has permission to delete this note
-  if (req.user.role !== 'super_admin') {
+  if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && req.user.company_id) {
     const client = await Client.findById(note.client_id);
     if (!client || client.company_id.toString() !== req.user.company_id.toString()) {
       res.status(403);
@@ -202,7 +202,7 @@ exports.getNotesByClientId = asyncHandler(async (req, res) => {
   }
   
   // Verify the client belongs to the user's company
-  if (req.user.role !== 'super_admin' && client.company_id.toString() !== req.user.company_id.toString()) {
+  if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && req.user.company_id && client.company_id.toString() !== req.user.company_id.toString()) {
     res.status(403);
     throw new Error('Not authorized to access notes for this client');
   }
