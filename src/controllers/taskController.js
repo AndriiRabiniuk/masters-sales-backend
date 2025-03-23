@@ -29,12 +29,6 @@ const getTasks = asyncHandler(async (req, res) => {
   // Step 2: Get leads for these clients
   const leads = await Lead.find({ client_id: { $in: clientIds } });
   const leadIds = leads.map(lead => lead._id);
-   const clients = await Client.find({ company_id });
-  const clientIds = clients.map(client => client._id);
-  
-  // Step 2: Get leads for these clients
-  const leads = await Lead.find({ client_id: { $in: clientIds } });
-  const leadIds = leads.map(lead => lead._id);
   
   // Step 3: Get interactions for these leads
   const interactions = await Interaction.find({ lead_id: { $in: leadIds } });
