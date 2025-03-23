@@ -1,4 +1,4 @@
-const { Interaction, Lead, InteractionContact, Contact } = require('../models');
+const { Interaction, Lead, InteractionContact, Contact, Client } = require('../models');
 const asyncHandler = require('express-async-handler');
 const { paginateResults } = require('../utils/paginationUtils');
 
@@ -9,6 +9,14 @@ const { paginateResults } = require('../utils/paginationUtils');
  */
 exports.getInteractions = asyncHandler(async (req, res) => {
   const { page, limit, search } = req.query;
+  const company_id = req.user.company_id;
+  const clients = await Client.find({ company_id });
+  const clientIds = clients.map(client => client._id);
+  
+  // Step 2: Get leads for these clients
+  const leads = await Lead.find({ client_id: { $in: clientIds } });
+  const leadIds = leads.map(lead => lead._id);
+  
   
   // Define which fields to search in if search parameter is provided
   const searchFields = search ? ['type_interaction', 'description'] : [];
@@ -19,7 +27,7 @@ exports.getInteractions = asyncHandler(async (req, res) => {
   // Build query to filter by user's company
   // This assumes you have a way to filter interactions by company
   // You might need to adjust this logic based on your actual data model
-  const query = {};
+  const query = { lead_id: { $in: leadIds } };
   
   // Get paginated results
   const results = await paginateResults(Interaction, query, {

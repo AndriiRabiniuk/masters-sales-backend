@@ -1,4 +1,4 @@
-const { Lead, Client } = require('../models');
+const { Lead, Client, Interaction } = require('../models');
 const asyncHandler = require('express-async-handler');
 const { paginateResults } = require('../utils/paginationUtils');
 
@@ -41,13 +41,14 @@ exports.getLeads = asyncHandler(async (req, res) => {
  * @access Private
  */
 exports.getLeadById = asyncHandler(async (req, res) => {
+  // Find the lead by ID and populate client and user information
   const lead = await Lead.findById(req.params.id)
-    .populate('user_id', 'name')
     .populate({
       path: 'client_id',
-      select: 'name company_id',
+      select: 'name SIREN SIRET company_id',
       populate: { path: 'company_id', select: 'name' }
-    });
+    })
+    .populate('user_id', 'name email');
   
   if (!lead) {
     res.status(404);
@@ -55,15 +56,25 @@ exports.getLeadById = asyncHandler(async (req, res) => {
   }
   
   // Check if user has permission to view this lead
-  if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && req.user.company_id) {
-    const client = await Client.findById(lead.client_id);
-    if (!client || client.company_id.toString() !== req.user.company_id.toString()) {
+  if (req.user.role !== 'super_admin') {
+    if (lead.client_id.company_id._id.toString() !== req.user.company_id.toString()) {
       res.status(403);
       throw new Error('Not authorized to access this lead');
     }
   }
   
-  res.json(lead);
+  // Get all interactions for this lead
+  const interactions = await Interaction.find({ lead_id: lead._id })
+    .populate('lead_id', 'name')
+    .sort({ date_interaction: -1 });
+  
+  // Combine lead data with interactions
+  const response = {
+    ...lead.toObject(),
+    interactions
+  };
+  
+  res.json(response);
 });
 
 /**
