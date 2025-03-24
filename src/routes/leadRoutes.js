@@ -87,12 +87,15 @@ router.get('/:id', protect, getLeadById);
  *                 description: Source of the lead
  *               statut:
  *                 type: string
- *                 enum: ['new', 'contacted', 'won', 'lost']
- *                 default: 'new'
+ *                 enum: ['Start-to-Call', 'Call-to-Connect', 'Connect-to-Contact', 'Contact-to-Demo', 'Demo-to-Close']
+ *                 default: 'Start-to-Call'
  *                 description: Status of the lead
  *               valeur_estimee:
  *                 type: number
  *                 description: Estimated value of the lead
+ *               assigned_user_id:
+ *                 type: string
+ *                 description: ID of the user to assign the lead to (admin only)
  *     responses:
  *       201:
  *         description: Lead created
@@ -101,7 +104,9 @@ router.get('/:id', protect, getLeadById);
  *       401:
  *         description: Unauthorized
  *       403:
- *         description: Forbidden - Not authorized to create leads for this client
+ *         description: Forbidden - Not authorized to create leads for this client or assign leads
+ *       404:
+ *         description: Client or assigned user not found
  */
 router.post('/', protect, createLead);
 
@@ -138,20 +143,23 @@ router.post('/', protect, createLead);
  *                 description: Source of the lead
  *               statut:
  *                 type: string
- *                 enum: ['new', 'contacted', 'won', 'lost']
+ *                 enum: ['Start-to-Call', 'Call-to-Connect', 'Connect-to-Contact', 'Contact-to-Demo', 'Demo-to-Close']
  *                 description: Status of the lead
  *               valeur_estimee:
  *                 type: number
  *                 description: Estimated value of the lead
+ *               assigned_user_id:
+ *                 type: string
+ *                 description: ID of the user to reassign the lead to (admin only)
  *     responses:
  *       200:
  *         description: Lead updated
  *       404:
- *         description: Lead not found
+ *         description: Lead, client, or assigned user not found
  *       401:
  *         description: Unauthorized
  *       403:
- *         description: Forbidden - Not authorized to update this lead
+ *         description: Forbidden - Not authorized to update this lead or reassign leads
  */
 router.put('/:id', protect, updateLead);
 

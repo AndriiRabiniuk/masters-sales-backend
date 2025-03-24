@@ -221,7 +221,7 @@ const seedContacts = async (clients) => {
 const seedLeads = async (clients, users) => {
   try {
     const leads = [];
-    const statuses = ['new', 'contacted', 'won', 'lost'];
+    const statuses = ['Start-to-Call', 'Call-to-Connect', 'Connect-to-Contact', 'Contact-to-Demo', 'Demo-to-Close'];
     const sources = ['website', 'referral', 'event'];
     const projectTypes = ['Expansion', 'Renovation', 'Automation', 'Digitalization', 'Innovation', 'Optimization'];
     

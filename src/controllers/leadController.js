@@ -1,4 +1,4 @@
-const { Lead, Client, Interaction } = require('../models');
+const { Lead, Client, Interaction, User } = require('../models');
 const asyncHandler = require('express-async-handler');
 const { paginateResults } = require('../utils/paginationUtils');
 
@@ -83,7 +83,7 @@ exports.getLeadById = asyncHandler(async (req, res) => {
  * @access Private
  */
 exports.createLead = asyncHandler(async (req, res) => {
-  const { client_id, name, source, statut, valeur_estimee } = req.body;
+  const { client_id, name, source, statut, valeur_estimee, assigned_user_id } = req.body;
   
   // Validate that client_id is provided
   if (!client_id) {
@@ -98,17 +98,39 @@ exports.createLead = asyncHandler(async (req, res) => {
     throw new Error('Client not found');
   }
   
-  // If not super_admin, can only create leads for clients in their own company
+  // If not super_admin or admin, can only create leads for clients in their own company
   if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && req.user.company_id) {
     if (client.company_id.toString() !== req.user.company_id.toString()) {
       res.status(403);
       throw new Error('You can only create leads for clients in your own company');
     }
   }
+
+  // If assigned_user_id is provided, verify it exists and belongs to the same company
+  let assignedUserId = req.user._id;
+  if (assigned_user_id) {
+    if (req.user.role !== 'super_admin' && req.user.role !== 'admin') {
+      res.status(403);
+      throw new Error('Only admins can assign leads to other users');
+    }
+    
+    const assignedUser = await User.findById(assigned_user_id);
+    if (!assignedUser) {
+      res.status(404);
+      throw new Error('Assigned user not found');
+    }
+    
+    if (assignedUser.company_id.toString() !== client.company_id.toString()) {
+      res.status(403);
+      throw new Error('Cannot assign lead to user from a different company');
+    }
+    
+    assignedUserId = assigned_user_id;
+  }
   
-  // Assign the lead to the current user
+  // Create the lead with the assigned user
   const lead = await Lead.create({
-    user_id: req.user._id,
+    user_id: assignedUserId,
     client_id,
     name,
     source,
@@ -158,6 +180,29 @@ exports.updateLead = asyncHandler(async (req, res) => {
       res.status(403);
       throw new Error('Not authorized to assign lead to a client from another company');
     }
+  }
+
+  // Handle lead reassignment
+  if (req.body.assigned_user_id) {
+    if (req.user.role !== 'super_admin' && req.user.role !== 'admin') {
+      res.status(403);
+      throw new Error('Only admins can reassign leads');
+    }
+
+    const assignedUser = await User.findById(req.body.assigned_user_id);
+    if (!assignedUser) {
+      res.status(404);
+      throw new Error('Assigned user not found');
+    }
+
+    const client = await Client.findById(lead.client_id);
+    if (assignedUser.company_id.toString() !== client.company_id.toString()) {
+      res.status(403);
+      throw new Error('Cannot assign lead to user from a different company');
+    }
+
+    req.body.user_id = req.body.assigned_user_id;
+    delete req.body.assigned_user_id;
   }
   
   const updatedLead = await Lead.findByIdAndUpdate(

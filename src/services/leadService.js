@@ -54,7 +54,7 @@ class LeadService {
     }
     
     // Validate status
-    const validStatuses = ['new', 'contacted', 'qualified', 'proposal', 'negotiation', 'won', 'lost'];
+    const validStatuses = ['Start-to-Call', 'Call-to-Connect', 'Connect-to-Contact', 'Contact-to-Demo', 'Demo-to-Close'];
     if (!validStatuses.includes(status)) {
       throw new Error('Invalid status');
     }
