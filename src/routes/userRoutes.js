@@ -71,7 +71,7 @@ const { protect, authorize } = require('../middleware/authMiddleware');
  *       403:
  *         description: Forbidden - not an admin
  */
-router.get('/', protect, authorize(['admin', 'super_admin']), getUsers);
+router.get('/', protect, authorize(['admin', 'super_admin',"sales"]), getUsers);
 
 /**
  * @swagger

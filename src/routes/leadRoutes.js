@@ -312,6 +312,6 @@ router.put('/:id', protect, updateLead);
  *       403:
  *         description: Forbidden - Not authorized to delete this lead
  */
-router.delete('/:id', protect, authorize(['super_admin', 'admin', 'manager']), deleteLead);
+router.delete('/:id', protect, authorize(['super_admin', 'admin', 'manager',"sales"]), deleteLead);
 
 module.exports = router; 
