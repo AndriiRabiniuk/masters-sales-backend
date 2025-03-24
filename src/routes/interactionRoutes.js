@@ -24,7 +24,13 @@ const {
  *     tags: [Interactions]
  *     security:
  *       - bearerAuth: []
- *     description: Retrieve all interactions. Regular users only get interactions for their company.
+ *     parameters:
+ *       - in: query
+ *         name: lead_id
+ *         schema:
+ *           type: string
+ *         description: Filter interactions by lead ID
+ *     description: Retrieve all interactions. Regular users only get interactions for their company. Can be filtered by lead_id.
  *     responses:
  *       200:
  *         description: A list of interactions
@@ -36,6 +42,10 @@ const {
  *                 $ref: '#/components/schemas/Interaction'
  *       401:
  *         description: Not authorized
+ *       403:
+ *         description: Forbidden - not authorized to access interactions for this lead
+ *       404:
+ *         description: Lead not found
  */
 router.route('/').get(protect, getInteractions);
 

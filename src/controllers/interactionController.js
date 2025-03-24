@@ -8,7 +8,7 @@ const { paginateResults } = require('../utils/paginationUtils');
  * @access Private
  */
 exports.getInteractions = asyncHandler(async (req, res) => {
-  const { page, limit, search } = req.query;
+  const { page, limit, search, lead_id } = req.query;
   const company_id = req.user.company_id;
   const clients = await Client.find({ company_id });
   const clientIds = clients.map(client => client._id);
@@ -17,17 +17,32 @@ exports.getInteractions = asyncHandler(async (req, res) => {
   const leads = await Lead.find({ client_id: { $in: clientIds } });
   const leadIds = leads.map(lead => lead._id);
   
-  
   // Define which fields to search in if search parameter is provided
   const searchFields = search ? ['type_interaction', 'description'] : [];
   
-  // Get user's company from authentication
-  const user = req.user;
+  // Build query to filter by user's company and lead_id if provided
+  let query = { lead_id: { $in: leadIds } };
   
-  // Build query to filter by user's company
-  // This assumes you have a way to filter interactions by company
-  // You might need to adjust this logic based on your actual data model
-  const query = { lead_id: { $in: leadIds } };
+  // If lead_id is provided, verify it belongs to the user's company
+  if (lead_id) {
+    const lead = await Lead.findById(lead_id);
+    if (!lead) {
+      res.status(404);
+      throw new Error('Lead not found');
+    }
+    
+    // Check if the lead belongs to the user's company
+    if (req.user.role !== 'super_admin' && req.user.role !== 'admin') {
+      const client = await Client.findById(lead.client_id);
+      if (!client || client.company_id.toString() !== req.user.company_id.toString()) {
+        res.status(403);
+        throw new Error('Not authorized to access interactions for this lead');
+      }
+    }
+    
+    // Update query to filter by specific lead
+    query = { lead_id };
+  }
   
   // Get paginated results
   const results = await paginateResults(Interaction, query, {

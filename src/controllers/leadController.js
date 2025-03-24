@@ -1,4 +1,4 @@
-const { Lead, Client, Interaction, User } = require('../models');
+const { Lead, Client, Interaction, User, Task } = require('../models');
 const asyncHandler = require('express-async-handler');
 const { paginateResults } = require('../utils/paginationUtils');
 
@@ -13,11 +13,19 @@ exports.getLeads = asyncHandler(async (req, res) => {
   // Define which fields to search in if search parameter is provided
   const searchFields = search ? ['name', 'source', 'statut'] : [];
   
-  // Filter by the authenticated user's company
-  const user_id = req.user._id;
-  
   // Prepare the base query
-  const query = { user_id };
+  let query = {};
+  
+  // If user is not super_admin, filter by company
+  if (req.user.role !== 'super_admin') {
+    // Get all clients for the user's company
+    const companyClients = await Client.find({ company_id: req.user.company_id })
+      .select('_id');
+    const clientIds = companyClients.map(client => client._id);
+    
+    // Filter leads by client IDs
+    query = { client_id: { $in: clientIds } };
+  }
   
   // Get paginated results
   const results = await paginateResults(Lead, query, {
@@ -25,14 +33,32 @@ exports.getLeads = asyncHandler(async (req, res) => {
     limit,
     search,
     searchFields,
-    populate: ['client_id'], // Populate client information
+    populate: [
+      { path: 'client_id' }, // Populate client information
+      { path: 'user_id', select: 'name email' } // Populate user information
+    ],
     sort: { created_at: -1 } // Sort by most recent first
   });
   
-  // Rename data to leads to match desired response format
-  const { data: leads, ...rest } = results;
+  // Get tasks for each lead
+  const leadsWithTasks = await Promise.all(results.data.map(async (lead) => {
+    const tasks = await Task.find({ interaction_id: { $in: lead.interactions || [] } })
+      .populate('assigned_to', 'name email')
+      .populate('interaction_id');
+    
+    return {
+      ...lead.toObject(),
+      tasks
+    };
+  }));
   
-  res.json({ leads, ...rest });
+  // Rename data to leads to match desired response format
+  const { data, ...rest } = results;
+  
+  res.json({ 
+    leads: leadsWithTasks, 
+    ...rest 
+  });
 });
 
 /**
@@ -67,11 +93,18 @@ exports.getLeadById = asyncHandler(async (req, res) => {
   const interactions = await Interaction.find({ lead_id: lead._id })
     .populate('lead_id', 'name')
     .sort({ date_interaction: -1 });
+
+  // Get all tasks associated with this lead's interactions
+  const tasks = await Task.find({ interaction_id: { $in: interactions.map(i => i._id) } })
+    .populate('assigned_to', 'name email')
+    .populate('interaction_id')
+    .sort({ due_date: 1 });
   
-  // Combine lead data with interactions
+  // Combine lead data with interactions and tasks
   const response = {
     ...lead.toObject(),
-    interactions
+    interactions,
+    tasks
   };
   
   res.json(response);

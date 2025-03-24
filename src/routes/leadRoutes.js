@@ -26,7 +26,61 @@ const { protect, authorize } = require('../middleware/authMiddleware');
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: List of leads
+ *         description: List of leads with their associated tasks
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 leads:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                       name:
+ *                         type: string
+ *                       client_id:
+ *                         type: object
+ *                       user_id:
+ *                         type: object
+ *                       statut:
+ *                         type: string
+ *                       tasks:
+ *                         type: array
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             _id:
+ *                               type: string
+ *                             titre:
+ *                               type: string
+ *                             description:
+ *                               type: string
+ *                             statut:
+ *                               type: string
+ *                             due_date:
+ *                               type: string
+ *                               format: date-time
+ *                             assigned_to:
+ *                               type: object
+ *                               properties:
+ *                                 name:
+ *                                   type: string
+ *                                 email:
+ *                                   type: string
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     total:
+ *                       type: number
+ *                     page:
+ *                       type: number
+ *                     limit:
+ *                       type: number
+ *                     pages:
+ *                       type: number
  *       401:
  *         description: Unauthorized
  */
@@ -48,11 +102,82 @@ router.get('/', protect, getLeads);
  *           type: string
  *     responses:
  *       200:
- *         description: Lead details
- *       404:
- *         description: Lead not found
+ *         description: Lead details with associated interactions and tasks
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 _id:
+ *                   type: string
+ *                 name:
+ *                   type: string
+ *                 client_id:
+ *                   type: object
+ *                   properties:
+ *                     name:
+ *                       type: string
+ *                     SIREN:
+ *                       type: string
+ *                     SIRET:
+ *                       type: string
+ *                     company_id:
+ *                       type: object
+ *                       properties:
+ *                         name:
+ *                           type: string
+ *                 user_id:
+ *                   type: object
+ *                   properties:
+ *                     name:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                 statut:
+ *                   type: string
+ *                 interactions:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                       date_interaction:
+ *                         type: string
+ *                         format: date-time
+ *                       type_interaction:
+ *                         type: string
+ *                       description:
+ *                         type: string
+ *                 tasks:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                       titre:
+ *                         type: string
+ *                       description:
+ *                         type: string
+ *                       statut:
+ *                         type: string
+ *                       due_date:
+ *                         type: string
+ *                         format: date-time
+ *                       assigned_to:
+ *                         type: object
+ *                         properties:
+ *                           name:
+ *                             type: string
+ *                           email:
+ *                             type: string
  *       401:
  *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Not authorized to access this lead
+ *       404:
+ *         description: Lead not found
  */
 router.get('/:id', protect, getLeadById);
 
