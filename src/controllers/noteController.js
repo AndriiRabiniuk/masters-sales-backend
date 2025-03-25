@@ -1,5 +1,6 @@
 const { Note, Client } = require('../models');
 const asyncHandler = require('express-async-handler');
+const { paginateResults } = require('../utils/paginationUtils');
 
 /**
  * Get all notes
@@ -7,30 +8,37 @@ const asyncHandler = require('express-async-handler');
  * @access Private
  */
 exports.getNotes = asyncHandler(async (req, res) => {
-  // If not super_admin, only show notes from clients in their company
-  let notes;
+  const { page, limit, search } = req.query;
   
-  if (req.user.role === 'super_admin') {
-    notes = await Note.find()
-      .populate({
-        path: 'client_id',
-        select: 'name company_id',
-        populate: { path: 'company_id', select: 'name' }
-      });
-  } else {
-    // Find all clients belonging to the user's company
-    const clients = await Client.find({ company_id: req.user.company_id }).select('_id');
-    const clientIds = clients.map(client => client._id);
-    
-    notes = await Note.find({ client_id: { $in: clientIds } })
-      .populate({
-        path: 'client_id',
-        select: 'name company_id',
-        populate: { path: 'company_id', select: 'name' }
-      });
-  }
-    
-  res.json(notes);
+  // Define which fields to search in if search parameter is provided
+  const searchFields = search ? ['contenu'] : [];
+  
+  // Get the user's company_id
+  const userCompanyId = req.user.company_id;
+  
+  // Find all clients that belong to the user's company
+  const clients = await Client.find({ company_id: userCompanyId }).select('_id');
+  const clientIds = clients.map(client => client._id);
+  
+  // Prepare the query to filter notes by clients belonging to user's company
+  const query = { client_id: { $in: clientIds } };
+  
+  // Get paginated results
+  const results = await paginateResults(Note, query, {
+    page,
+    limit,
+    search,
+    searchFields,
+    populate: [
+      { path: 'client_id', select: 'name SIREN SIRET' }
+    ],
+    sort: { created_at: -1 } // Sort by most recent first
+  });
+  
+  // Rename data to notes to match desired response format
+  const { data: notes, ...rest } = results;
+  
+  res.json({ notes, ...rest });
 });
 
 /**
@@ -52,7 +60,7 @@ exports.getNoteById = asyncHandler(async (req, res) => {
   }
   
   // Check if user has permission to view this note
-  if (req.user.role !== 'super_admin') {
+  if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && req.user.company_id) {
     const client = await Client.findById(note.client_id);
     if (!client || client.company_id.toString() !== req.user.company_id.toString()) {
       res.status(403);
@@ -85,7 +93,7 @@ exports.createNote = asyncHandler(async (req, res) => {
   }
   
   // If not super_admin, can only create notes for clients in their own company
-  if (req.user.role !== 'super_admin') {
+  if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && req.user.company_id) {
     if (client.company_id.toString() !== req.user.company_id.toString()) {
       res.status(403);
       throw new Error('You can only create notes for clients in your own company');
@@ -119,7 +127,7 @@ exports.updateNote = asyncHandler(async (req, res) => {
   }
   
   // Check if user has permission to update this note
-  if (req.user.role !== 'super_admin') {
+  if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && req.user.company_id) {
     const client = await Client.findById(note.client_id);
     if (!client || client.company_id.toString() !== req.user.company_id.toString()) {
       res.status(403);
@@ -135,7 +143,7 @@ exports.updateNote = asyncHandler(async (req, res) => {
       throw new Error('Client not found');
     }
     
-    if (req.user.role !== 'super_admin' && newClient.company_id.toString() !== req.user.company_id.toString()) {
+    if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && req.user.company_id && newClient.company_id.toString() !== req.user.company_id.toString()) {
       res.status(403);
       throw new Error('Not authorized to assign note to a client from another company');
     }
@@ -164,7 +172,7 @@ exports.deleteNote = asyncHandler(async (req, res) => {
   }
   
   // Check if user has permission to delete this note
-  if (req.user.role !== 'super_admin') {
+  if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && req.user.company_id) {
     const client = await Client.findById(note.client_id);
     if (!client || client.company_id.toString() !== req.user.company_id.toString()) {
       res.status(403);
@@ -174,4 +182,48 @@ exports.deleteNote = asyncHandler(async (req, res) => {
   
   await note.deleteOne();
   res.json({ message: 'Note removed' });
+});
+
+/**
+ * Get notes by client ID
+ * @route GET /api/notes/client/:clientId
+ * @access Private
+ */
+exports.getNotesByClientId = asyncHandler(async (req, res) => {
+  const { clientId } = req.params;
+  const { page, limit, search } = req.query;
+  
+  // Find the client and verify it exists
+  const client = await Client.findById(clientId);
+  
+  if (!client) {
+    res.status(404);
+    throw new Error('Client not found');
+  }
+  
+  // Verify the client belongs to the user's company
+  if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && req.user.company_id && client.company_id.toString() !== req.user.company_id.toString()) {
+    res.status(403);
+    throw new Error('Not authorized to access notes for this client');
+  }
+  
+  // Define which fields to search in if search parameter is provided
+  const searchFields = search ? ['contenu'] : [];
+  
+  // Prepare the query to filter notes by the specific client
+  const query = { client_id: clientId };
+  
+  // Get paginated results
+  const results = await paginateResults(Note, query, {
+    page,
+    limit,
+    search,
+    searchFields,
+    sort: { created_at: -1 } // Sort by most recent first
+  });
+  
+  // Rename data to notes to match desired response format
+  const { data: notes, ...rest } = results;
+  
+  res.json({ notes, ...rest });
 }); 

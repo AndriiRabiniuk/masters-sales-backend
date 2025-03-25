@@ -1,5 +1,6 @@
 const { Contact, Client } = require('../models');
 const asyncHandler = require('express-async-handler');
+const { paginateResults } = require('../utils/paginationUtils');
 
 /**
  * Get all contacts
@@ -7,30 +8,39 @@ const asyncHandler = require('express-async-handler');
  * @access Private
  */
 exports.getContacts = asyncHandler(async (req, res) => {
-  // If not super_admin, only show contacts from clients in their company
-  let contacts;
+  const { page, limit, search } = req.query;
   
-  if (req.user.role === 'super_admin') {
-    contacts = await Contact.find()
-      .populate({
-        path: 'client_id',
-        select: 'name company_id',
-        populate: { path: 'company_id', select: 'name' }
-      });
-  } else {
-    // Find all clients belonging to the user's company
-    const clients = await Client.find({ company_id: req.user.company_id }).select('_id');
-    const clientIds = clients.map(client => client._id);
-    
-    contacts = await Contact.find({ client_id: { $in: clientIds } })
-      .populate({
-        path: 'client_id',
-        select: 'name company_id',
-        populate: { path: 'company_id', select: 'name' }
-      });
-  }
-    
-  res.json(contacts);
+  // Define which fields to search in if search parameter is provided
+  const searchFields = search ? ['name', 'prenom', 'email', 'telephone', 'fonction'] : [];
+  
+  // Get the user's company ID
+  const company_id = req.user.company_id;
+  
+  // Find all clients associated with the user's company
+  const clients = await Client.find({ company_id });
+  const clientIds = clients.map(client => client._id);
+  
+  // Prepare the query to get contacts from these clients
+  const query = { client_id: { $in: clientIds } };
+  
+  // Get paginated results
+  const results = await paginateResults(Contact, query, {
+    page,
+    limit,
+    search,
+    searchFields,
+    populate: {
+      path: 'client_id',
+      select: 'name company_id',
+      populate: { path: 'company_id', select: 'name' }
+    },
+    sort: { created_at: -1 } // Sort by most recent first
+  });
+  
+  // Rename data to contacts to match desired response format
+  const { data: contacts, ...rest } = results;
+  
+  res.json({ contacts, ...rest });
 });
 
 /**
@@ -52,7 +62,7 @@ exports.getContactById = asyncHandler(async (req, res) => {
   }
   
   // Check if user has permission to view this contact
-  if (req.user.role !== 'super_admin') {
+  if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && req.user.company_id) {
     const client = await Client.findById(contact.client_id);
     if (!client || client.company_id.toString() !== req.user.company_id.toString()) {
       res.status(403);
@@ -85,7 +95,7 @@ exports.createContact = asyncHandler(async (req, res) => {
   }
   
   // If not super_admin, can only create contacts for clients in their own company
-  if (req.user.role !== 'super_admin') {
+  if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && req.user.company_id) {
     if (client.company_id.toString() !== req.user.company_id.toString()) {
       res.status(403);
       throw new Error('You can only create contacts for clients in your own company');
@@ -123,7 +133,7 @@ exports.updateContact = asyncHandler(async (req, res) => {
   }
   
   // Check if user has permission to update this contact
-  if (req.user.role !== 'super_admin') {
+  if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && req.user.company_id) {
     const client = await Client.findById(contact.client_id);
     if (!client || client.company_id.toString() !== req.user.company_id.toString()) {
       res.status(403);
@@ -139,7 +149,7 @@ exports.updateContact = asyncHandler(async (req, res) => {
       throw new Error('Client not found');
     }
     
-    if (req.user.role !== 'super_admin' && newClient.company_id.toString() !== req.user.company_id.toString()) {
+    if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && newClient.company_id.toString() !== req.user.company_id.toString()) {
       res.status(403);
       throw new Error('Not authorized to assign contact to a client from another company');
     }
@@ -168,7 +178,7 @@ exports.deleteContact = asyncHandler(async (req, res) => {
   }
   
   // Check if user has permission to delete this contact
-  if (req.user.role !== 'super_admin') {
+  if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && req.user.company_id) {
     const client = await Client.findById(contact.client_id);
     if (!client || client.company_id.toString() !== req.user.company_id.toString()) {
       res.status(403);

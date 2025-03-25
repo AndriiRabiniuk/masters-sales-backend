@@ -12,10 +12,13 @@ require('dotenv').config();
 // Import routes
 const authRoutes = require('./routes/authRoutes');
 const companyRoutes = require('./routes/companyRoutes');
+const clientRoutes = require('./routes/clientRoutes');
 const contactRoutes = require('./routes/contactRoutes');
 const leadRoutes = require('./routes/leadRoutes');
 const interactionRoutes = require('./routes/interactionRoutes');
 const noteRoutes = require('./routes/noteRoutes');
+const taskRoutes = require('./routes/taskRoutes');
+const userRoutes = require('./routes/userRoutes');
 
 // Initialize Express app
 const app = express();
@@ -45,10 +48,13 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/companies', companyRoutes);
+app.use('/api/clients', clientRoutes);
 app.use('/api/contacts', contactRoutes);
 app.use('/api/leads', leadRoutes);
 app.use('/api/interactions', interactionRoutes);
 app.use('/api/notes', noteRoutes);
+app.use('/api/tasks', taskRoutes);
+app.use('/api/users', userRoutes);
 
 // Root route
 app.get('/', (req, res) => {

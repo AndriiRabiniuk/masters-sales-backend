@@ -1,5 +1,6 @@
 const { Company } = require('../models');
 const asyncHandler = require('express-async-handler');
+const { paginateResults } = require('../utils/paginationUtils');
 
 // @desc    Create a new company
 // @route   POST /api/companies
@@ -38,8 +39,27 @@ exports.createCompany = asyncHandler(async (req, res) => {
 // @route   GET /api/companies
 // @access  Private/SuperAdmin
 exports.getCompanies = asyncHandler(async (req, res) => {
-  const companies = await Company.find({});
-  res.json(companies);
+  const { page, limit, search } = req.query;
+  
+  // Define which fields to search in if search parameter is provided
+  const searchFields = search ? ['name', 'SIREN', 'SIRET', 'code_postal', 'code_NAF'] : [];
+  
+  // SuperAdmins can see all companies, so no additional filtering is needed
+  const query = {};
+  
+  // Get paginated results
+  const results = await paginateResults(Company, query, {
+    page,
+    limit,
+    search,
+    searchFields,
+    sort: { name: 1 } // Sort alphabetically by name
+  });
+  
+  // Rename data to companies to match desired response format
+  const { data: companies, ...rest } = results;
+  
+  res.json({ companies, ...rest });
 });
 
 // @desc    Get company by ID

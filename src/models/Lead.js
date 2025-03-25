@@ -25,8 +25,8 @@ const leadSchema = new mongoose.Schema({
   statut: {
     type: String,
     trim: true,
-    enum: ['new', 'contacted', 'won', 'lost'],
-    default: 'new',
+    enum: ['Start-to-Call', 'Call-to-Connect', 'Connect-to-Contact', 'Contact-to-Demo', 'Demo-to-Close'],
+    default: 'Start-to-Call',
   },
   valeur_estimee: {
     type: Number,

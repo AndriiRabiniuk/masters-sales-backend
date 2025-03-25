@@ -1,11 +1,12 @@
 const { Client } = require('../models');
 const asyncHandler = require('express-async-handler');
+const { paginateResults } = require('../utils/paginationUtils');
 
 // @desc    Create a new client
 // @route   POST /api/clients
 // @access  Private/Admin
 exports.createClient = asyncHandler(async (req, res) => {
-  const { 
+  let { 
     company_id, 
     name, 
     SIREN, 
@@ -20,13 +21,15 @@ exports.createClient = asyncHandler(async (req, res) => {
   } = req.body;
 
   // If not super_admin, can only create clients for their own company
-  if (req.user.role !== 'super_admin' && req.user.company_id) {
+  if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && req.user.company_id) {
     if (!company_id || company_id.toString() !== req.user.company_id.toString()) {
       res.status(403);
       throw new Error('You can only create clients for your own company');
     }
   }
-
+  if(req.user.role === 'super_admin' || req.user.role === 'admin'){
+    company_id = req.user.company_id;
+  }
   const client = await Client.create({
     company_id,
     name,
@@ -53,15 +56,31 @@ exports.createClient = asyncHandler(async (req, res) => {
 // @route   GET /api/clients
 // @access  Private
 exports.getClients = asyncHandler(async (req, res) => {
-  let query = {};
+  const { page, limit, search } = req.query;
   
-  // If not super_admin, only show clients from their company
-  if (req.user.role !== 'super_admin' && req.user.company_id) {
-    query.company_id = req.user.company_id;
-  }
+  // Define which fields to search in if search parameter is provided
+  const searchFields = search ? ['name', 'SIREN', 'SIRET', 'code_postal'] : [];
   
-  const clients = await Client.find(query);
-  res.json(clients);
+  // Get company_id from authenticated user (assuming this is how you filter by company)
+  const company_id = req.user.company_id;
+  
+  // Prepare the base query
+  const query = company_id ? { company_id } : {};
+  
+  // Get paginated results
+  const results = await paginateResults(Client, query, {
+    page,
+    limit,
+    search,
+    searchFields,
+    populate: 'company_id', // Populate related fields if needed
+    sort: { createdAt: -1 } // Sort by most recent first
+  });
+  
+  // Rename data to clients to match desired response format
+  const { data: clients, ...rest } = results;
+  
+  res.json({ clients, ...rest });
 });
 
 // @desc    Get client by ID
@@ -76,7 +95,7 @@ exports.getClientById = asyncHandler(async (req, res) => {
   }
   
   // Check if user has permission to view this client
-  if (req.user.role !== 'super_admin' && req.user.company_id) {
+  if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && req.user.company_id) {
     if (client.company_id.toString() !== req.user.company_id.toString()) {
       res.status(403);
       throw new Error('Not authorized to access this client');
@@ -98,20 +117,17 @@ exports.updateClient = asyncHandler(async (req, res) => {
   }
 
   // Check if user has permission to update this client
-  if (req.user.role !== 'super_admin' && req.user.company_id) {
+  if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && req.user.company_id) {
     if (client.company_id.toString() !== req.user.company_id.toString()) {
       res.status(403);
       throw new Error('Not authorized to update this client');
     }
   }
+  if (req.user.role === 'admin'){
+    req.body.company_id = req.user.company_id;
+  }
 
   // Don't allow changing company_id unless super_admin
-  if (req.body.company_id && req.user.role !== 'super_admin') {
-    if (req.body.company_id.toString() !== client.company_id.toString()) {
-      res.status(403);
-      throw new Error('Not authorized to change company_id');
-    }
-  }
   
   const updatedClient = await Client.findByIdAndUpdate(
     req.params.id,
@@ -134,7 +150,7 @@ exports.deleteClient = asyncHandler(async (req, res) => {
   }
 
   // Check if user has permission to delete this client
-  if (req.user.role !== 'super_admin' && req.user.company_id) {
+  if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && req.user.company_id) {
     if (client.company_id.toString() !== req.user.company_id.toString()) {
       res.status(403);
       throw new Error('Not authorized to delete this client');

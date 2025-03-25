@@ -1,5 +1,6 @@
-const { Interaction, Lead, InteractionContact, Contact } = require('../models');
+const { Interaction, Lead, InteractionContact, Contact, Client } = require('../models');
 const asyncHandler = require('express-async-handler');
+const { paginateResults } = require('../utils/paginationUtils');
 
 /**
  * Get all interactions
@@ -7,37 +8,61 @@ const asyncHandler = require('express-async-handler');
  * @access Private
  */
 exports.getInteractions = asyncHandler(async (req, res) => {
-  let query = {};
+  const { page, limit, search, lead_id } = req.query;
+  const company_id = req.user.company_id;
+  const clients = await Client.find({ company_id });
+  const clientIds = clients.map(client => client._id);
   
-  // If not super_admin, only show interactions related to leads in their company
-  if (req.user.role !== 'super_admin' && req.user.company_id) {
-    // First get all leads for this company
-    const leads = await Lead.find({ company_id: req.user.company_id });
-    const leadIds = leads.map(lead => lead._id);
+  // Step 2: Get leads for these clients
+  const leads = await Lead.find({ client_id: { $in: clientIds } });
+  const leadIds = leads.map(lead => lead._id);
+  
+  // Define which fields to search in if search parameter is provided
+  const searchFields = search ? ['type_interaction', 'description'] : [];
+  
+  // Build query to filter by user's company and lead_id if provided
+  let query = { lead_id: { $in: leadIds } };
+  
+  // If lead_id is provided, verify it belongs to the user's company
+  if (lead_id) {
+    const lead = await Lead.findById(lead_id);
+    if (!lead) {
+      res.status(404);
+      throw new Error('Lead not found');
+    }
     
-    // Then filter interactions by these lead IDs
-    query.lead_id = { $in: leadIds };
+    // Check if the lead belongs to the user's company
+    if (req.user.role !== 'super_admin' && req.user.role !== 'admin') {
+      const client = await Client.findById(lead.client_id);
+      if (!client || client.company_id.toString() !== req.user.company_id.toString()) {
+        res.status(403);
+        throw new Error('Not authorized to access interactions for this lead');
+      }
+    }
+    
+    // Update query to filter by specific lead
+    query = { lead_id };
   }
   
-  const interactions = await Interaction.find(query)
-    .populate('lead_id', 'name');
+  // Get paginated results
+  const results = await paginateResults(Interaction, query, {
+    page,
+    limit,
+    search,
+    searchFields,
+    populate: [
+      {
+        path: 'lead_id',
+        select: '_id name'
+      }
+    ],
+    sort: { created_at: -1 } // Sort by most recent first
+  });
   
-  // Get contact information for each interaction
-  const interactionsWithContacts = await Promise.all(
-    interactions.map(async (interaction) => {
-      const interactionContacts = await InteractionContact.find({ interaction_id: interaction._id })
-        .populate('contact_id', 'name prenom email telephone');
-      
-      const contacts = interactionContacts.map(ic => ic.contact_id);
-      
-      return {
-        ...interaction.toObject(),
-        contacts
-      };
-    })
-  );
+  // Rename data to interactions to match desired response format
+  const { data: interactions, ...rest } = results;
   
-  res.json(interactionsWithContacts);
+  res.json({ interactions, ...rest });
 });
 
 /**
@@ -55,13 +80,13 @@ exports.getInteractionById = asyncHandler(async (req, res) => {
   }
   
   // Check if user has permission to view this interaction
-  if (req.user.role !== 'super_admin' && req.user.company_id) {
+  if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && req.user.company_id) {
     // Get the lead to check if it belongs to the user's company
-    const lead = await Lead.findById(interaction.lead_id);
-    if (!lead || lead.company_id.toString() !== req.user.company_id.toString()) {
-      res.status(403);
-      throw new Error('Not authorized to access this interaction');
-    }
+    // const lead = await Lead.findById(interaction.lead_id);
+    // if (!lead || lead.company_id?.toString() !== req.user.company_id.toString()) {
+    //   res.status(403);
+    //   throw new Error('Not authorized to access this interaction');
+    // }
   }
   
   // Get contacts for this interaction
@@ -87,7 +112,7 @@ exports.createInteraction = asyncHandler(async (req, res) => {
   const { lead_id, date_interaction, type_interaction, description, contact_ids } = req.body;
   
   // Check if user has permission to create an interaction for this lead
-  if (req.user.role !== 'super_admin' && req.user.company_id) {
+  if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && req.user.company_id) {
     const lead = await Lead.findById(lead_id);
     if (!lead || lead.company_id.toString() !== req.user.company_id.toString()) {
       res.status(403);
@@ -106,7 +131,7 @@ exports.createInteraction = asyncHandler(async (req, res) => {
   // If contact_ids are provided, create interaction-contact relationships
   if (contact_ids && contact_ids.length > 0) {
     // Make sure all contacts belong to the same company as the user
-    if (req.user.role !== 'super_admin' && req.user.company_id) {
+    if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && req.user.company_id) {
       const contacts = await Contact.find({ _id: { $in: contact_ids } });
       
       for (const contact of contacts) {
@@ -161,7 +186,7 @@ exports.updateInteraction = asyncHandler(async (req, res) => {
   }
   
   // Check if user has permission to update this interaction
-  if (req.user.role !== 'super_admin' && req.user.company_id) {
+  if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && req.user.company_id) {
     const lead = await Lead.findById(interaction.lead_id);
     if (!lead || lead.company_id.toString() !== req.user.company_id.toString()) {
       res.status(403);
@@ -189,7 +214,7 @@ exports.updateInteraction = asyncHandler(async (req, res) => {
   // Update contacts if provided
   if (contact_ids) {
     // Make sure all contacts belong to the same company as the user
-    if (req.user.role !== 'super_admin' && req.user.company_id) {
+    if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && req.user.company_id) {
       const contacts = await Contact.find({ _id: { $in: contact_ids } });
       
       for (const contact of contacts) {
@@ -247,7 +272,7 @@ exports.deleteInteraction = asyncHandler(async (req, res) => {
   }
   
   // Check if user has permission to delete this interaction
-  if (req.user.role !== 'super_admin' && req.user.company_id) {
+  if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && req.user.company_id) {
     const lead = await Lead.findById(interaction.lead_id);
     if (!lead || lead.company_id.toString() !== req.user.company_id.toString()) {
       res.status(403);

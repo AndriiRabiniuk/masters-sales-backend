@@ -1,5 +1,6 @@
-const { Lead, Client } = require('../models');
+const { Lead, Client, Interaction, User, Task } = require('../models');
 const asyncHandler = require('express-async-handler');
+const { paginateResults } = require('../utils/paginationUtils');
 
 /**
  * Get all leads
@@ -7,32 +8,60 @@ const asyncHandler = require('express-async-handler');
  * @access Private
  */
 exports.getLeads = asyncHandler(async (req, res) => {
-  // If not super_admin, only show leads from clients in their company
-  let leads;
+  const { page, limit, search, client_id } = req.query;
   
-  if (req.user.role === 'super_admin') {
-    leads = await Lead.find()
-      .populate('user_id', 'name')
-      .populate({
-        path: 'client_id',
-        select: 'name company_id',
-        populate: { path: 'company_id', select: 'name' }
-      });
-  } else {
-    // Find all clients belonging to the user's company
-    const clients = await Client.find({ company_id: req.user.company_id }).select('_id');
-    const clientIds = clients.map(client => client._id);
+  // Define which fields to search in if search parameter is provided
+  const searchFields = search ? ['name', 'source', 'statut'] : [];
+  
+  // Prepare the base query
+  let query = {};
+  
+  // If user is not super_admin, filter by company
+  if (req.user.role !== 'super_admin') {
+    // Get all clients for the user's company
+    const companyClients = await Client.find({ company_id: req.user.company_id })
+      .select('_id');
+    const clientIds = companyClients.map(client => client._id);
     
-    leads = await Lead.find({ client_id: { $in: clientIds } })
-      .populate('user_id', 'name')
-      .populate({
-        path: 'client_id',
-        select: 'name company_id',
-        populate: { path: 'company_id', select: 'name' }
-      });
+    // Filter leads by client IDs
+    query = { client_id: { $in: clientIds } };
+  }
+  if (client_id) {
+    query = { client_id: client_id };
   }
   
-  res.json(leads);
+  // Get paginated results
+  const results = await paginateResults(Lead, query, {
+    page,
+    limit,
+    search,
+    searchFields,
+    populate: [
+      { path: 'client_id' }, // Populate client information
+      { path: 'user_id', select: 'name email' } // Populate user information
+    ],
+    sort: { created_at: -1 } // Sort by most recent first
+  });
+  
+  // Get tasks for each lead
+  const leadsWithTasks = await Promise.all(results.data.map(async (lead) => {
+    const tasks = await Task.find({ interaction_id: { $in: lead.interactions || [] } })
+      .populate('assigned_to', 'name email')
+      .populate('interaction_id');
+    
+    return {
+      ...lead.toObject(),
+      tasks
+    };
+  }));
+  
+  // Rename data to leads to match desired response format
+  const { data, ...rest } = results;
+  
+  res.json({ 
+    leads: leadsWithTasks, 
+    ...rest 
+  });
 });
 
 /**
@@ -41,13 +70,14 @@ exports.getLeads = asyncHandler(async (req, res) => {
  * @access Private
  */
 exports.getLeadById = asyncHandler(async (req, res) => {
+  // Find the lead by ID and populate client and user information
   const lead = await Lead.findById(req.params.id)
-    .populate('user_id', 'name')
     .populate({
       path: 'client_id',
-      select: 'name company_id',
+      select: 'name SIREN SIRET company_id',
       populate: { path: 'company_id', select: 'name' }
-    });
+    })
+    .populate('user_id', 'name email');
   
   if (!lead) {
     res.status(404);
@@ -56,14 +86,31 @@ exports.getLeadById = asyncHandler(async (req, res) => {
   
   // Check if user has permission to view this lead
   if (req.user.role !== 'super_admin') {
-    const client = await Client.findById(lead.client_id);
-    if (!client || client.company_id.toString() !== req.user.company_id.toString()) {
+    if (lead.client_id.company_id._id.toString() !== req.user.company_id.toString()) {
       res.status(403);
       throw new Error('Not authorized to access this lead');
     }
   }
   
-  res.json(lead);
+  // Get all interactions for this lead
+  const interactions = await Interaction.find({ lead_id: lead._id })
+    .populate('lead_id', 'name')
+    .sort({ date_interaction: -1 });
+
+  // Get all tasks associated with this lead's interactions
+  const tasks = await Task.find({ interaction_id: { $in: interactions.map(i => i._id) } })
+    .populate('assigned_to', 'name email')
+    .populate('interaction_id')
+    .sort({ due_date: 1 });
+  
+  // Combine lead data with interactions and tasks
+  const response = {
+    ...lead.toObject(),
+    interactions,
+    tasks
+  };
+  
+  res.json(response);
 });
 
 /**
@@ -72,7 +119,7 @@ exports.getLeadById = asyncHandler(async (req, res) => {
  * @access Private
  */
 exports.createLead = asyncHandler(async (req, res) => {
-  const { client_id, name, source, statut, valeur_estimee } = req.body;
+  const { client_id, name, source, statut, valeur_estimee, assigned_user_id } = req.body;
   
   // Validate that client_id is provided
   if (!client_id) {
@@ -87,17 +134,39 @@ exports.createLead = asyncHandler(async (req, res) => {
     throw new Error('Client not found');
   }
   
-  // If not super_admin, can only create leads for clients in their own company
-  if (req.user.role !== 'super_admin') {
+  // If not super_admin or admin, can only create leads for clients in their own company
+  if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && req.user.company_id) {
     if (client.company_id.toString() !== req.user.company_id.toString()) {
       res.status(403);
       throw new Error('You can only create leads for clients in your own company');
     }
   }
+
+  // If assigned_user_id is provided, verify it exists and belongs to the same company
+  let assignedUserId = req.user._id;
+  if (assigned_user_id) {
+    if (req.user.role !== 'super_admin' && req.user.role !== 'admin') {
+      res.status(403);
+      throw new Error('Only admins can assign leads to other users');
+    }
+    
+    const assignedUser = await User.findById(assigned_user_id);
+    if (!assignedUser) {
+      res.status(404);
+      throw new Error('Assigned user not found');
+    }
+    
+    if (assignedUser.company_id.toString() !== client.company_id.toString()) {
+      res.status(403);
+      throw new Error('Cannot assign lead to user from a different company');
+    }
+    
+    assignedUserId = assigned_user_id;
+  }
   
-  // Assign the lead to the current user
+  // Create the lead with the assigned user
   const lead = await Lead.create({
-    user_id: req.user._id,
+    user_id: assignedUserId,
     client_id,
     name,
     source,
@@ -127,7 +196,7 @@ exports.updateLead = asyncHandler(async (req, res) => {
   }
   
   // Check if user has permission to update this lead
-  if (req.user.role !== 'super_admin') {
+  if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && req.user.company_id) {
     const client = await Client.findById(lead.client_id);
     if (!client || client.company_id.toString() !== req.user.company_id.toString()) {
       res.status(403);
@@ -143,10 +212,33 @@ exports.updateLead = asyncHandler(async (req, res) => {
       throw new Error('Client not found');
     }
     
-    if (req.user.role !== 'super_admin' && newClient.company_id.toString() !== req.user.company_id.toString()) {
+    if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && req.user.company_id && newClient.company_id.toString() !== req.user.company_id.toString()) {
       res.status(403);
       throw new Error('Not authorized to assign lead to a client from another company');
     }
+  }
+
+  // Handle lead reassignment
+  if (req.body.assigned_user_id) {
+    if (req.user.role !== 'super_admin' && req.user.role !== 'admin') {
+      res.status(403);
+      throw new Error('Only admins can reassign leads');
+    }
+
+    const assignedUser = await User.findById(req.body.assigned_user_id);
+    if (!assignedUser) {
+      res.status(404);
+      throw new Error('Assigned user not found');
+    }
+
+    const client = await Client.findById(lead.client_id);
+    if (assignedUser.company_id.toString() !== client.company_id.toString()) {
+      res.status(403);
+      throw new Error('Cannot assign lead to user from a different company');
+    }
+
+    req.body.user_id = req.body.assigned_user_id;
+    delete req.body.assigned_user_id;
   }
   
   const updatedLead = await Lead.findByIdAndUpdate(
@@ -172,7 +264,7 @@ exports.deleteLead = asyncHandler(async (req, res) => {
   }
   
   // Check if user has permission to delete this lead
-  if (req.user.role !== 'super_admin') {
+  if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && req.user.company_id) {
     const client = await Client.findById(lead.client_id);
     if (!client || client.company_id.toString() !== req.user.company_id.toString()) {
       res.status(403);

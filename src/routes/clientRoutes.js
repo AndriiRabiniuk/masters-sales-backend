@@ -164,7 +164,7 @@ router.get('/:id', protect, getClientById);
  *       401:
  *         description: Unauthorized
  */
-router.post('/', protect, authorize(['super_admin', 'admin', 'manager']), createClient);
+router.post('/', protect, authorize(['super_admin', 'admin', 'manager',"sales"]), createClient);
 
 /**
  * @swagger
@@ -218,7 +218,7 @@ router.post('/', protect, authorize(['super_admin', 'admin', 'manager']), create
  *       404:
  *         description: Client not found
  */
-router.put('/:id', protect, authorize(['super_admin', 'admin', 'manager']), updateClient);
+router.put('/:id', protect, authorize(['super_admin', 'admin', 'manager',"sales"]), updateClient);
 
 /**
  * @swagger

@@ -102,6 +102,7 @@ const loginUser = asyncHandler(async (req, res) => {
       email: user.email,
       role: user.role,
       company_id: user.company_id,
+      user: user,
       token: accessToken
     });
   } else {
