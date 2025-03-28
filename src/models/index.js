@@ -8,7 +8,16 @@ const Interaction = require('./Interaction');
 const InteractionContact = require('./InteractionContact');
 const Task = require('./Task');
 
+// CMS Models
+const Content = require('./Content');
+const Category = require('./Category');
+const Media = require('./Media');
+const Tag = require('./Tag');
+const ContentTag = require('./ContentTag');
+const Template = require('./Template');
+
 module.exports = {
+  // CRM Models
   User,
   Company,
   Client,
@@ -17,5 +26,13 @@ module.exports = {
   Note,
   Interaction,
   InteractionContact,
-  Task
+  Task,
+  
+  // CMS Models
+  Content,
+  Category,
+  Media,
+  Tag,
+  ContentTag,
+  Template
 }; 
