@@ -44,6 +44,7 @@ The API is organized around the following resources:
 - [Categories](categories.md) - Manage content categories
 - [Tags](tags.md) - Manage content tags
 - [Templates](templates.md) - Manage content templates
+- [Media](media.md) - Upload, manage, and retrieve media files
 
 Each resource documentation includes:
 - Available endpoints
@@ -69,6 +70,7 @@ The CMS API uses the following data models:
 - [Tag Model](models/tag.md)
 - [Template Model](models/template.md)
 - [User Model](models/user.md)
+- [Media Model](models/media.md)
 
 ## Examples
 

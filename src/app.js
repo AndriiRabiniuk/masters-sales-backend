@@ -21,6 +21,7 @@ const taskRoutes = require('./routes/taskRoutes');
 const userRoutes = require('./routes/userRoutes');
 const uploadRoutes = require('./routes/uploadRoutes');
 const cmsRoutes = require('./routes/cms');
+const mediaRoutes = require('./routes/mediaRoutes');
 // Initialize Express app
 const app = express();
 
@@ -65,6 +66,7 @@ app.use('/api/tasks', taskRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/cms', cmsRoutes);
+app.use('/api/media', mediaRoutes);
 
 // Root route
 app.get('/', (req, res) => {
