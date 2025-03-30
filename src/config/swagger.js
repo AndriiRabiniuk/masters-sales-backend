@@ -65,6 +65,10 @@ const swaggerOptions = {
         name: 'Tasks',
         description: 'Task management endpoints',
       },
+      {
+        name: 'Upload',
+        description: 'File upload and AWS S3 related endpoints',
+      },
     ],
   },
   apis: ['./src/routes/*.js'], // Path to the API routes files
