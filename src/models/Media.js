@@ -11,12 +11,7 @@ const mediaSchema = new mongoose.Schema({
     required: true,
     trim: true,
   },
-  file_name: {
-    type: String,
-    required: true,
-    trim: true,
-  },
-  file_path: {
+  file_url: {
     type: String,
     required: true,
     trim: true,
