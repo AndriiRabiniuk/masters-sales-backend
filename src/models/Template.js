@@ -16,7 +16,6 @@ const templateSchema = new mongoose.Schema({
     required: true,
     unique: true,
     trim: true,
-    lowercase: true,
   },
   description: {
     type: String,
@@ -35,7 +34,7 @@ const templateSchema = new mongoose.Schema({
   template_type: {
     type: String,
     enum: ['page', 'post', 'product', 'landing_page', 'custom'],
-    default: 'page',
+    required: true,
   },
   is_default: {
     type: Boolean,
@@ -60,17 +59,21 @@ const templateSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-// Create automatic slug from name if not provided
+// Pre-save middleware to update the updated_at timestamp
 templateSchema.pre('save', function(next) {
-  if (this.isModified('name') && !this.slug) {
-    this.slug = this.name
-      .toLowerCase()
-      .replace(/[^\w ]+/g, '')
-      .replace(/ +/g, '-');
-  }
   this.updated_at = Date.now();
   next();
 });
+
+// Static method to find templates by type
+templateSchema.statics.findByType = function(type) {
+  return this.find({ template_type: type });
+};
+
+// Static method to find default templates
+templateSchema.statics.findDefaultTemplates = function() {
+  return this.find({ is_default: true });
+};
 
 const Template = mongoose.model('Template', templateSchema);
 

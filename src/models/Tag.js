@@ -16,7 +16,6 @@ const tagSchema = new mongoose.Schema({
     required: true,
     unique: true,
     trim: true,
-    lowercase: true,
   },
   description: {
     type: String,
@@ -47,6 +46,11 @@ tagSchema.pre('save', function(next) {
   this.updated_at = Date.now();
   next();
 });
+
+// Static method to find tags by usage count
+tagSchema.statics.findByUsage = function(minCount = 0) {
+  return this.find({ count: { $gte: minCount } });
+};
 
 const Tag = mongoose.model('Tag', tagSchema);
 

@@ -20,7 +20,7 @@ const noteRoutes = require('./routes/noteRoutes');
 const taskRoutes = require('./routes/taskRoutes');
 const userRoutes = require('./routes/userRoutes');
 const uploadRoutes = require('./routes/uploadRoutes');
-
+const cmsRoutes = require('./routes/cms');
 // Initialize Express app
 const app = express();
 
@@ -44,7 +44,14 @@ app.use(passport.initialize());
 require('./config/passport');
 
 // API Documentation
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
+app.use('/cms/swagger', swaggerUi.serve, (req, res  ) => {
+  let html = swaggerUi.generateHTML(swaggerDocs.cmsSwaggerDocs);
+  res.send(html );
+});
+app.use('/crm/swagger', swaggerUi.serve, (req, res) => {
+  let html = swaggerUi.generateHTML(swaggerDocs.swaggerDocs);
+  res.send(html);
+});
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -57,6 +64,7 @@ app.use('/api/notes', noteRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/cms', cmsRoutes);
 
 // Root route
 app.get('/', (req, res) => {
