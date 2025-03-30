@@ -46,12 +46,9 @@ const options = {
       },
     ],
   },
-  // Only include files from the cms directory
+  // Include all CMS routes files
   apis: [
-    './src/routes/cms/content.routes.js',
-    './src/routes/cms/category.routes.js',
-    './src/routes/cms/tag.routes.js',
-    './src/routes/cms/template.routes.js'
+    './src/routes/cms/*.js' // This will include all files in the cms directory
   ]
 };
 
