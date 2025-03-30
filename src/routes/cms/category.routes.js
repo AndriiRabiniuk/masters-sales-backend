@@ -11,6 +11,24 @@ const { authenticate: auth } = require('../../middleware/auth');
  *     tags: [Categories]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: The page number for pagination
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Number of items per page
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Search term to filter categories by name or description
  *     responses:
  *       200:
  *         description: List of categories
@@ -25,6 +43,25 @@ const { authenticate: auth } = require('../../middleware/auth');
  *                 results:
  *                   type: integer
  *                   description: Number of categories returned
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     total:
+ *                       type: integer
+ *                       example: 50
+ *                       description: Total number of matching categories
+ *                     page:
+ *                       type: integer
+ *                       example: 1
+ *                       description: Current page number
+ *                     pages:
+ *                       type: integer
+ *                       example: 5
+ *                       description: Total number of pages
+ *                     limit:
+ *                       type: integer
+ *                       example: 10
+ *                       description: Number of items per page
  *                 data:
  *                   type: array
  *                   items:
@@ -195,6 +232,18 @@ router.delete('/:id', auth, categoryController.deleteCategory);
  *         schema:
  *           type: string
  *         description: Parent category ID
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: The page number for pagination
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Number of items per page
  *     responses:
  *       200:
  *         description: List of categories with specified parent
@@ -209,6 +258,25 @@ router.delete('/:id', auth, categoryController.deleteCategory);
  *                 results:
  *                   type: integer
  *                   description: Number of categories returned
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     total:
+ *                       type: integer
+ *                       example: 20
+ *                       description: Total number of matching categories
+ *                     page:
+ *                       type: integer
+ *                       example: 1
+ *                       description: Current page number
+ *                     pages:
+ *                       type: integer
+ *                       example: 2
+ *                       description: Total number of pages
+ *                     limit:
+ *                       type: integer
+ *                       example: 10
+ *                       description: Number of items per page
  *                 data:
  *                   type: array
  *                   items:
@@ -219,12 +287,25 @@ router.get('/parent/:parentId', auth, categoryController.getCategoriesByParent);
 
 /**
  * @swagger
- * /api/cms/categories/root/all:
+ * /api/cms/categories/root:
  *   get:
  *     summary: Get root categories
  *     tags: [Categories]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: The page number for pagination
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Number of items per page
  *     responses:
  *       200:
  *         description: List of root categories
@@ -239,6 +320,25 @@ router.get('/parent/:parentId', auth, categoryController.getCategoriesByParent);
  *                 results:
  *                   type: integer
  *                   description: Number of categories returned
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     total:
+ *                       type: integer
+ *                       example: 10
+ *                       description: Total number of matching categories
+ *                     page:
+ *                       type: integer
+ *                       example: 1
+ *                       description: Current page number
+ *                     pages:
+ *                       type: integer
+ *                       example: 1
+ *                       description: Total number of pages
+ *                     limit:
+ *                       type: integer
+ *                       example: 10
+ *                       description: Number of items per page
  *                 data:
  *                   type: array
  *                   items:

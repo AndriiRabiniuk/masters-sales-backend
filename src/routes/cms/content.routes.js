@@ -11,6 +11,93 @@ const { authenticate: auth } = require('../../middleware/auth');
  *     tags: [Content]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: The page number for pagination
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Number of items per page
+ *       - in: query
+ *         name: sort
+ *         schema:
+ *           type: string
+ *           example: publish_date:desc
+ *         description: Field to sort by with direction (field:asc|desc)
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Search term to filter results
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [draft, published, archived]
+ *         description: Filter by content status
+ *       - in: query
+ *         name: visibility
+ *         schema:
+ *           type: string
+ *           enum: [public, private, password_protected]
+ *         description: Filter by content visibility
+ *       - in: query
+ *         name: category_id
+ *         schema:
+ *           type: string
+ *         description: Filter by category ID
+ *       - in: query
+ *         name: template_id
+ *         schema:
+ *           type: string
+ *         description: Filter by template ID
+ *       - in: query
+ *         name: author_id
+ *         schema:
+ *           type: string
+ *         description: Filter by author ID
+ *       - in: query
+ *         name: created_at_from
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: Filter by creation date (from)
+ *       - in: query
+ *         name: created_at_to
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: Filter by creation date (to)
+ *       - in: query
+ *         name: updated_at_from
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: Filter by last update date (from)
+ *       - in: query
+ *         name: updated_at_to
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: Filter by last update date (to)
+ *       - in: query
+ *         name: publish_date_from
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: Filter by publish date (from)
+ *       - in: query
+ *         name: publish_date_to
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: Filter by publish date (to)
  *     responses:
  *       200:
  *         description: List of content items
@@ -25,6 +112,25 @@ const { authenticate: auth } = require('../../middleware/auth');
  *                 results:
  *                   type: integer
  *                   description: Number of content items returned
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     total:
+ *                       type: integer
+ *                       example: 100
+ *                       description: Total number of matching items
+ *                     page:
+ *                       type: integer
+ *                       example: 1
+ *                       description: Current page number
+ *                     pages:
+ *                       type: integer
+ *                       example: 10
+ *                       description: Total number of pages
+ *                     limit:
+ *                       type: integer
+ *                       example: 10
+ *                       description: Number of items per page
  *                 data:
  *                   type: array
  *                   items:
@@ -200,10 +306,22 @@ router.delete('/:id', auth, contentController.deleteContent);
  *         schema:
  *           type: string
  *           enum: [draft, published, archived]
- *         description: Content status to filter by
+ *         description: Content status
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: The page number for pagination
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Number of items per page
  *     responses:
  *       200:
- *         description: List of content items by status
+ *         description: List of content items with specified status
  *         content:
  *           application/json:
  *             schema:
@@ -215,6 +333,25 @@ router.delete('/:id', auth, contentController.deleteContent);
  *                 results:
  *                   type: integer
  *                   description: Number of content items returned
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     total:
+ *                       type: integer
+ *                       example: 100
+ *                       description: Total number of matching items
+ *                     page:
+ *                       type: integer
+ *                       example: 1
+ *                       description: Current page number
+ *                     pages:
+ *                       type: integer
+ *                       example: 10
+ *                       description: Total number of pages
+ *                     limit:
+ *                       type: integer
+ *                       example: 10
+ *                       description: Number of items per page
  *                 data:
  *                   type: array
  *                   items:
@@ -236,7 +373,19 @@ router.get('/status/:status', auth, contentController.getContentByStatus);
  *         required: true
  *         schema:
  *           type: string
- *         description: Category ID to filter by
+ *         description: Category ID
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: The page number for pagination
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Number of items per page
  *     responses:
  *       200:
  *         description: List of content items in the specified category
@@ -251,6 +400,25 @@ router.get('/status/:status', auth, contentController.getContentByStatus);
  *                 results:
  *                   type: integer
  *                   description: Number of content items returned
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     total:
+ *                       type: integer
+ *                       example: 100
+ *                       description: Total number of matching items
+ *                     page:
+ *                       type: integer
+ *                       example: 1
+ *                       description: Current page number
+ *                     pages:
+ *                       type: integer
+ *                       example: 10
+ *                       description: Total number of pages
+ *                     limit:
+ *                       type: integer
+ *                       example: 10
+ *                       description: Number of items per page
  *                 data:
  *                   type: array
  *                   items:

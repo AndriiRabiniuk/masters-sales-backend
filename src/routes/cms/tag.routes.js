@@ -11,6 +11,24 @@ const { authenticate: auth } = require('../../middleware/auth');
  *     tags: [Tags]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: The page number for pagination
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Number of items per page
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Search term to filter tags by name or description
  *     responses:
  *       200:
  *         description: List of tags
@@ -25,6 +43,25 @@ const { authenticate: auth } = require('../../middleware/auth');
  *                 results:
  *                   type: integer
  *                   description: Number of tags returned
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     total:
+ *                       type: integer
+ *                       example: 45
+ *                       description: Total number of matching tags
+ *                     page:
+ *                       type: integer
+ *                       example: 1
+ *                       description: Current page number
+ *                     pages:
+ *                       type: integer
+ *                       example: 5
+ *                       description: Total number of pages
+ *                     limit:
+ *                       type: integer
+ *                       example: 10
+ *                       description: Number of items per page
  *                 data:
  *                   type: array
  *                   items:
@@ -185,6 +222,18 @@ router.delete('/:id', auth, tagController.deleteTag);
  *         schema:
  *           type: integer
  *         description: Minimum usage count threshold
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: The page number for pagination
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Number of items per page
  *     responses:
  *       200:
  *         description: List of tags with usage count greater than or equal to minCount
@@ -199,6 +248,25 @@ router.delete('/:id', auth, tagController.deleteTag);
  *                 results:
  *                   type: integer
  *                   description: Number of tags returned
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     total:
+ *                       type: integer
+ *                       example: 25
+ *                       description: Total number of matching tags
+ *                     page:
+ *                       type: integer
+ *                       example: 1
+ *                       description: Current page number
+ *                     pages:
+ *                       type: integer
+ *                       example: 3
+ *                       description: Total number of pages
+ *                     limit:
+ *                       type: integer
+ *                       example: 10
+ *                       description: Number of items per page
  *                 data:
  *                   type: array
  *                   items:

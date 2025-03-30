@@ -1,17 +1,38 @@
 const Category = require('../../models/Category');
 const ApiError = require('../../utils/ApiError');
 const catchAsync = require('../../utils/catchAsync');
+const { paginateResults } = require('../../utils/paginationUtils');
 
 // Get all categories
 exports.getAllCategories = catchAsync(async (req, res, next) => {
-  const categories = await Category.find({ company_id: req.user.company_id })
-    .populate('featured_image', 'file_url')
-    .sort('order');
-
+  const filter = { company_id: req.user.company_id };
+  
+  const options = {
+    page: parseInt(req.query.page) || 1,
+    limit: parseInt(req.query.limit) || 10,
+    populate: { path: 'featured_image', select: 'file_url' },
+    sort: { order: 1 }
+  };
+  
+  // Handle search if provided
+  if (req.query.search) {
+    options.search = req.query.search;
+    options.searchFields = ['name', 'description', 'slug'];
+  }
+  
+  // Get paginated results
+  const results = await paginateResults(Category, filter, options);
+  
   res.status(200).json({
     status: 'success',
-    results: categories.length,
-    data: categories
+    results: results.data.length,
+    pagination: {
+      total: results.total,
+      page: results.page,
+      pages: results.totalPages,
+      limit: results.limit
+    },
+    data: results.data
   });
 });
 
@@ -88,33 +109,61 @@ exports.deleteCategory = catchAsync(async (req, res, next) => {
 
 // Get categories by parent
 exports.getCategoriesByParent = catchAsync(async (req, res, next) => {
-  const categories = await Category.find({
+  const filter = {
     company_id: req.user.company_id,
     parent_id: req.params.parentId
-  })
-    .populate('featured_image', 'file_url')
-    .sort('order');
-
+  };
+  
+  const options = {
+    page: parseInt(req.query.page) || 1,
+    limit: parseInt(req.query.limit) || 10,
+    populate: { path: 'featured_image', select: 'file_url' },
+    sort: { order: 1 }
+  };
+  
+  // Get paginated results
+  const results = await paginateResults(Category, filter, options);
+  
   res.status(200).json({
     status: 'success',
-    results: categories.length,
-    data: categories
+    results: results.data.length,
+    pagination: {
+      total: results.total,
+      page: results.page,
+      pages: results.totalPages,
+      limit: results.limit
+    },
+    data: results.data
   });
 });
 
 // Get root categories
 exports.getRootCategories = catchAsync(async (req, res, next) => {
-  const categories = await Category.find({
+  const filter = {
     company_id: req.user.company_id,
     parent_id: null
-  })
-    .populate('featured_image', 'file_url')
-    .sort('order');
-
+  };
+  
+  const options = {
+    page: parseInt(req.query.page) || 1,
+    limit: parseInt(req.query.limit) || 10,
+    populate: { path: 'featured_image', select: 'file_url' },
+    sort: { order: 1 }
+  };
+  
+  // Get paginated results
+  const results = await paginateResults(Category, filter, options);
+  
   res.status(200).json({
     status: 'success',
-    results: categories.length,
-    data: categories
+    results: results.data.length,
+    pagination: {
+      total: results.total,
+      page: results.page,
+      pages: results.totalPages,
+      limit: results.limit
+    },
+    data: results.data
   });
 });
 

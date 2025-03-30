@@ -11,6 +11,24 @@ const { authenticate: auth } = require('../../middleware/auth');
  *     tags: [Templates]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: The page number for pagination
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Number of items per page
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Search term to filter templates by name or description
  *     responses:
  *       200:
  *         description: List of templates
@@ -25,6 +43,24 @@ const { authenticate: auth } = require('../../middleware/auth');
  *                 results:
  *                   type: integer
  *                   description: Number of templates returned
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     total:
+ *                       type: integer
+ *                       example: 30
+ *                       description: Total number of matching templates
+ *                     page:
+ *                       type: integer
+ *                       example: 1
+ *                       description: Current page number
+ *                     pages:
+ *                       type: integer
+ *                       example: 3
+ *                       description: Total number of pages
+ *                     limit:
+ *                       type: integer
+ *                       example: 10
  *                 data:
  *                   type: array
  *                   items:
@@ -198,6 +234,18 @@ router.delete('/:id', auth, templateController.deleteTemplate);
  *           type: string
  *           enum: [page, post, product, landing_page, custom]
  *         description: Template type to filter by
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: The page number for pagination
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Number of items per page
  *     responses:
  *       200:
  *         description: List of templates with specified type
@@ -212,6 +260,25 @@ router.delete('/:id', auth, templateController.deleteTemplate);
  *                 results:
  *                   type: integer
  *                   description: Number of templates returned
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     total:
+ *                       type: integer
+ *                       example: 15
+ *                       description: Total number of matching templates
+ *                     page:
+ *                       type: integer
+ *                       example: 1
+ *                       description: Current page number
+ *                     pages:
+ *                       type: integer
+ *                       example: 2
+ *                       description: Total number of pages
+ *                     limit:
+ *                       type: integer
+ *                       example: 10
+ *                       description: Number of items per page
  *                 data:
  *                   type: array
  *                   items:
@@ -222,12 +289,25 @@ router.get('/type/:type', auth, templateController.getTemplatesByType);
 
 /**
  * @swagger
- * /api/cms/templates/default/all:
+ * /api/cms/templates/default:
  *   get:
  *     summary: Get default templates
  *     tags: [Templates]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: The page number for pagination
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Number of items per page
  *     responses:
  *       200:
  *         description: List of default templates
@@ -242,6 +322,25 @@ router.get('/type/:type', auth, templateController.getTemplatesByType);
  *                 results:
  *                   type: integer
  *                   description: Number of templates returned
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     total:
+ *                       type: integer
+ *                       example: 5
+ *                       description: Total number of matching templates
+ *                     page:
+ *                       type: integer
+ *                       example: 1
+ *                       description: Current page number
+ *                     pages:
+ *                       type: integer
+ *                       example: 1
+ *                       description: Total number of pages
+ *                     limit:
+ *                       type: integer
+ *                       example: 10
+ *                       description: Number of items per page
  *                 data:
  *                   type: array
  *                   items:

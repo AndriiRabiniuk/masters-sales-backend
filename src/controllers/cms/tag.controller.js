@@ -2,16 +2,37 @@ const Tag = require('../../models/Tag');
 const ContentTag = require('../../models/ContentTag');
 const ApiError = require('../../utils/ApiError');
 const catchAsync = require('../../utils/catchAsync');
+const { paginateResults } = require('../../utils/paginationUtils');
 
 // Get all tags
 exports.getAllTags = catchAsync(async (req, res, next) => {
-  const tags = await Tag.find({ company_id: req.user.company_id })
-    .sort('name');
-
+  const filter = { company_id: req.user.company_id };
+  
+  const options = {
+    page: parseInt(req.query.page) || 1,
+    limit: parseInt(req.query.limit) || 10,
+    sort: { name: 1 }
+  };
+  
+  // Handle search if provided
+  if (req.query.search) {
+    options.search = req.query.search;
+    options.searchFields = ['name', 'description'];
+  }
+  
+  // Get paginated results
+  const results = await paginateResults(Tag, filter, options);
+  
   res.status(200).json({
     status: 'success',
-    results: tags.length,
-    data: tags
+    results: results.data.length,
+    pagination: {
+      total: results.total,
+      page: results.page,
+      pages: results.totalPages,
+      limit: results.limit
+    },
+    data: results.data
   });
 });
 
@@ -91,15 +112,30 @@ exports.deleteTag = catchAsync(async (req, res, next) => {
 
 // Get tags by usage count
 exports.getTagsByUsage = catchAsync(async (req, res, next) => {
-  const tags = await Tag.find({
+  const filter = { 
     company_id: req.user.company_id,
     count: { $gte: parseInt(req.params.minCount) }
-  }).sort('count');
-
+  };
+  
+  const options = {
+    page: parseInt(req.query.page) || 1,
+    limit: parseInt(req.query.limit) || 10,
+    sort: { count: -1 } // Sort by count descending to show most popular first
+  };
+  
+  // Get paginated results
+  const results = await paginateResults(Tag, filter, options);
+  
   res.status(200).json({
     status: 'success',
-    results: tags.length,
-    data: tags
+    results: results.data.length,
+    pagination: {
+      total: results.total,
+      page: results.page,
+      pages: results.totalPages,
+      limit: results.limit
+    },
+    data: results.data
   });
 });
 
