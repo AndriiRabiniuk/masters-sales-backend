@@ -14,7 +14,6 @@ const categorySchema = new mongoose.Schema({
   slug: {
     type: String,
     required: true,
-    unique: true,
     trim: true,
   },
   description: {
@@ -50,6 +49,9 @@ const categorySchema = new mongoose.Schema({
     default: Date.now,
   }
 }, { timestamps: true });
+
+// Create a compound index for company_id and slug to ensure unique slugs per company
+categorySchema.index({ company_id: 1, slug: 1 }, { unique: true });
 
 // Pre-save middleware to update the updated_at timestamp
 categorySchema.pre('save', function(next) {

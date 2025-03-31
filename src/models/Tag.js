@@ -14,7 +14,6 @@ const tagSchema = new mongoose.Schema({
   slug: {
     type: String,
     required: true,
-    unique: true,
     trim: true,
   },
   description: {
@@ -34,6 +33,9 @@ const tagSchema = new mongoose.Schema({
     default: Date.now,
   }
 }, { timestamps: true });
+
+// Create a compound index for company_id and slug to ensure unique slugs per company
+tagSchema.index({ company_id: 1, slug: 1 }, { unique: true });
 
 // Create automatic slug from name if not provided
 tagSchema.pre('save', function(next) {

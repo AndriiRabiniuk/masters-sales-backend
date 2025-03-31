@@ -14,7 +14,6 @@ const contentSchema = new mongoose.Schema({
   slug: {
     type: String,
     required: true,
-    unique: true,
     trim: true,
   },
   content: {
@@ -81,6 +80,9 @@ const contentSchema = new mongoose.Schema({
 
 // Index for faster searching
 contentSchema.index({ title: 'text', content: 'text', excerpt: 'text' });
+
+// Create a compound index for company_id and slug to ensure unique slugs per company
+contentSchema.index({ company_id: 1, slug: 1 }, { unique: true });
 
 // Create automatic slug from title if not provided
 contentSchema.pre('save', function(next) {
