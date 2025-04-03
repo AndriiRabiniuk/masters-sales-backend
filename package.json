@@ -6,7 +6,8 @@
     "start": "node src/app.js",
     "dev": "nodemon src/app.js",
     "test": "jest",
-    "seed": "node seed.js"
+    "seed": "node seed.js",
+    "seed:courses-blogs": "node src/utils/seed/seedData.js"
   },
   "keywords": [],
   "author": "",
