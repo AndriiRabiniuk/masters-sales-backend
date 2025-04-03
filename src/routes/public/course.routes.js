@@ -229,7 +229,7 @@ router.get('/:id', catchAsync(async (req, res, next) => {
  */
 
 // Get all course categories
-router.get('/categories', catchAsync(async (req, res, next) => {
+router.get('/get/categories', catchAsync(async (req, res, next) => {
   const categories = await CourseCategory.find({}, 'name slug');
   
   res.status(200).json({

@@ -219,7 +219,7 @@ router.get('/:id', catchAsync(async (req, res, next) => {
  */
 
 // Get all blog categories
-router.get('/categories', catchAsync(async (req, res, next) => {
+router.get('/get/categories', catchAsync(async (req, res, next) => {
   const categories = await BlogCategory.find({}, 'name slug');
   
   res.status(200).json({
