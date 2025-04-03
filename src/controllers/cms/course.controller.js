@@ -176,7 +176,7 @@ exports.updateCourse = catchAsync(async (req, res, next) => {
 // Delete course
 exports.deleteCourse = catchAsync(async (req, res, next) => {
   const course = await Course.findOneAndDelete({
-    id: req.params.id,
+    _id: req.params.id,
     company_id: req.user.company_id
   });
 

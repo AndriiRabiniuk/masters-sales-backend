@@ -184,7 +184,7 @@ exports.updateBlog = catchAsync(async (req, res, next) => {
 // Delete blog
 exports.deleteBlog = catchAsync(async (req, res, next) => {
   const blog = await Blog.findOneAndDelete({
-    id: req.params.id,
+    _id: req.params.id,
     company_id: req.user.company_id
   });
 
