@@ -22,6 +22,9 @@ const userRoutes = require('./routes/userRoutes');
 const uploadRoutes = require('./routes/uploadRoutes');
 const cmsRoutes = require('./routes/cms');
 const mediaRoutes = require('./routes/mediaRoutes');
+const publicBlogRoutes = require('./routes/public/blog.routes');
+const publicCourseRoutes = require('./routes/public/course.routes');
+
 // Initialize Express app
 const app = express();
 
@@ -67,6 +70,8 @@ app.use('/api/users', userRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/cms', cmsRoutes);
 app.use('/api/media', mediaRoutes);
+app.use('/api/blogs', publicBlogRoutes);
+app.use('/api/courses', publicCourseRoutes);
 
 // Root route
 app.get('/', (req, res) => {
