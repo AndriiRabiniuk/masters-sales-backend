@@ -161,7 +161,7 @@ exports.updateBlog = catchAsync(async (req, res, next) => {
   
   const blog = await Blog.findOneAndUpdate(
     {
-      id: req.params.id,
+      _id: req.params.id,
       company_id: req.user.company_id
     },
     req.body,
