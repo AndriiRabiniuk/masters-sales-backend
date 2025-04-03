@@ -102,7 +102,7 @@ exports.getAllBlogs = catchAsync(async (req, res, next) => {
 // Get blog by ID
 exports.getBlogById = catchAsync(async (req, res, next) => {
   const blog = await Blog.findOne({
-    id: req.params.id,
+    _id: req.params.id,
     company_id: req.user.company_id
   }).populate('categories', 'name slug');
 

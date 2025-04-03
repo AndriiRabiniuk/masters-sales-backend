@@ -104,7 +104,7 @@ exports.getAllCourses = catchAsync(async (req, res, next) => {
 // Get course by ID
 exports.getCourseById = catchAsync(async (req, res, next) => {
   const course = await Course.findOne({
-    id: req.params.id,
+    _id: req.params.id,
     company_id: req.user.company_id
   }).populate('categories', 'name slug');
 
