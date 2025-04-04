@@ -49,6 +49,12 @@ const courseSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'CourseCategory'
   }],
+  audience: {
+    type: String,
+    enum: ['english', 'french', 'all'],
+    default: 'all',
+    trim: true
+  },
   level: {
     type: String,
     required: true,

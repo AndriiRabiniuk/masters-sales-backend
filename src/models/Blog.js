@@ -44,6 +44,12 @@ const BlogSchema = new Schema(
       required: true,
       trim: true
     },
+    audience: {
+      type: String,
+      enum: ['english', 'french', 'all'],
+      default: 'all',
+      trim: true
+    },
     htmlContent: {
       type: String,
       trim: true

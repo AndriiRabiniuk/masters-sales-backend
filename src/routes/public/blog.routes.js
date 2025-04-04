@@ -43,6 +43,12 @@ const mongoose = require('mongoose');
  *         schema:
  *           type: string
  *         description: Filter blogs by category name, slug, or ID
+ *       - in: query
+ *         name: audience
+ *         schema:
+ *           type: string
+ *           enum: [english, french, all]
+ *         description: Filter blogs by target audience (english, french, or all). If not specified, returns content for all audiences.
  *     responses:
  *       200:
  *         description: List of blogs
@@ -104,6 +110,17 @@ router.get('/', catchAsync(async (req, res, next) => {
       if (category) {
         filter.categories = { $in: [category._id] };
       }
+    }
+  }
+  
+  // Filter by audience if provided
+  if (req.query.audience) {
+    if (['english', 'french', 'all'].includes(req.query.audience)) {
+      // If audience is specified, filter by that specific audience or 'all'
+      filter.$or = [
+        { audience: req.query.audience },
+        { audience: 'all' }
+      ];
     }
   }
   

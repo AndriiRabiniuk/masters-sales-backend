@@ -69,6 +69,17 @@ exports.getAllCourses = catchAsync(async (req, res, next) => {
     filter.level = req.query.level;
   }
   
+  // Filter by audience if provided
+  if (req.query.audience) {
+    if (['english', 'french', 'all'].includes(req.query.audience)) {
+      // If audience is specified, filter by that specific audience or 'all'
+      filter.$or = [
+        { audience: req.query.audience },
+        { audience: 'all' }
+      ];
+    }
+  }
+  
   const options = {
     page: parseInt(req.query.page) || 1,
     limit: parseInt(req.query.limit) || 10,

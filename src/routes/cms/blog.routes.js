@@ -69,6 +69,12 @@ const { authenticate: auth } = require('../../middleware/auth');
  *           type: string
  *           description: Publication date of the blog
  *           example: "Feb 12, 2024"
+ *         audience:
+ *           type: string
+ *           description: Target audience for the blog
+ *           enum: [english, french, all]
+ *           default: all
+ *           example: "all"
  *         htmlContent:
  *           type: string
  *           description: HTML version of the blog content
@@ -128,6 +134,12 @@ const { authenticate: auth } = require('../../middleware/auth');
  *         schema:
  *           type: string
  *         description: Filter blogs by category name, slug, ID, or legacy category_name
+ *       - in: query
+ *         name: audience
+ *         schema:
+ *           type: string
+ *           enum: [english, french, all]
+ *         description: Filter blogs by target audience (english, french, or all). If not specified, returns all content.
  *     responses:
  *       200:
  *         description: List of blogs
@@ -248,6 +260,12 @@ router.get('/:id', auth, blogController.getBlogById);
  *                 type: string
  *                 description: Publication date of the blog
  *                 example: "Feb 12, 2024"
+ *               audience:
+ *                 type: string
+ *                 description: Target audience for the blog
+ *                 enum: [english, french, all]
+ *                 default: all
+ *                 example: "all"
  *               htmlContent:
  *                 type: string
  *                 description: HTML version of the blog content
@@ -328,6 +346,11 @@ router.post('/', auth, blogController.createBlog);
  *               date:
  *                 type: string
  *                 description: Publication date of the blog
+ *               audience:
+ *                 type: string
+ *                 description: Target audience for the blog
+ *                 enum: [english, french, all]
+ *                 example: "english"
  *               htmlContent:
  *                 type: string
  *                 description: HTML version of the blog content
