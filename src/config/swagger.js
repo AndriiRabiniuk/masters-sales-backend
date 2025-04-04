@@ -69,9 +69,13 @@ const swaggerOptions = {
         name: 'Upload',
         description: 'File upload and AWS S3 related endpoints',
       },
+      {
+        name: 'Public Users',
+        description: 'Public user registration endpoints',
+      },
     ],
   },
-  apis: ['./src/routes/*.js'], // Path to the API routes files
+  apis: ['./src/routes/*.js', './src/routes/public/*.js'], // Path to the API routes files
 };
 
 const cmsSwaggerOptions = {
