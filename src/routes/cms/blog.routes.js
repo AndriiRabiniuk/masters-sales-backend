@@ -69,6 +69,10 @@ const { authenticate: auth } = require('../../middleware/auth');
  *           type: string
  *           description: Publication date of the blog
  *           example: "Feb 12, 2024"
+ *         htmlContent:
+ *           type: string
+ *           description: HTML version of the blog content
+ *           example: "<h2>Introduction</h2><p>In the competitive world of sales, understanding human psychology gives you a significant advantage.</p>"
  *         content:
  *           type: array
  *           description: Sections of the blog content
@@ -244,6 +248,10 @@ router.get('/:id', auth, blogController.getBlogById);
  *                 type: string
  *                 description: Publication date of the blog
  *                 example: "Feb 12, 2024"
+ *               htmlContent:
+ *                 type: string
+ *                 description: HTML version of the blog content
+ *                 example: "<h2>Introduction</h2><p>In the competitive world of sales, understanding human psychology gives you a significant advantage.</p>"
  *               content:
  *                 type: array
  *                 description: Sections of the blog content
@@ -320,6 +328,10 @@ router.post('/', auth, blogController.createBlog);
  *               date:
  *                 type: string
  *                 description: Publication date of the blog
+ *               htmlContent:
+ *                 type: string
+ *                 description: HTML version of the blog content
+ *                 example: "<h2>Introduction</h2><p>In the competitive world of sales, understanding human psychology gives you a significant advantage.</p>"
  *               content:
  *                 type: array
  *                 description: Sections of the blog content

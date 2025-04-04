@@ -120,7 +120,7 @@ router.get('/', catchAsync(async (req, res, next) => {
   // Handle search if provided
   if (req.query.search) {
     options.search = req.query.search;
-    options.searchFields = ['title', 'excerpt', 'author', 'content.heading', 'content.paragraphs'];
+    options.searchFields = ['title', 'excerpt', 'author', 'content.heading', 'content.paragraphs', 'htmlContent'];
   }
   
   // Get paginated results

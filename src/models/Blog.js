@@ -44,6 +44,10 @@ const BlogSchema = new Schema(
       required: true,
       trim: true
     },
+    htmlContent: {
+      type: String,
+      trim: true
+    },
     content: [{
       heading: {
         type: String,
@@ -74,7 +78,8 @@ BlogSchema.index({
   excerpt: 'text',
   author: 'text',
   'content.heading': 'text',
-  'content.paragraphs': 'text'
+  'content.paragraphs': 'text',
+  htmlContent: 'text'
 });
 
 const Blog = mongoose.model('Blog', BlogSchema);
