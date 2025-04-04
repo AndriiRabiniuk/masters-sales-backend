@@ -12,7 +12,7 @@ const { authenticate: auth } = require('../../middleware/auth');
  *       properties:
  *         title:
  *           type: string
- *           example: "Introduction to Consultative Selling"
+ *           example: "Understanding Customer Psychology"
  *         duration:
  *           type: string
  *           example: "45 minutes"
@@ -34,33 +34,39 @@ const { authenticate: auth } = require('../../middleware/auth');
  *         id:
  *           type: string
  *           description: Unique identifier for the course
- *           example: "fundamentals-consultative-selling"
+ *           example: "consultative-selling-masterclass"
  *         title:
  *           type: string
  *           description: Course title
- *           example: "Fundamentals of Consultative Selling"
+ *           example: "Consultative Selling Masterclass"
  *         description:
  *           type: string
  *           description: Brief description of the course
- *           example: "Learn the core principles of consultative selling and how to build meaningful client relationships based on trust."
+ *           example: "Learn how to position yourself as a trusted advisor and create value through the sales process."
  *         longDescription:
  *           type: string
  *           description: Detailed description of the course
- *           example: "This comprehensive course will teach you the fundamentals of consultative selling..."
+ *           example: "This comprehensive program teaches the foundations of consultative selling, from needs discovery to solution positioning. You'll learn proven frameworks used by top performers to differentiate themselves from competitors."
  *         image:
  *           type: string
- *           description: URL to the course image
+ *           description: URL to the course thumbnail image
  *           example: "https://placehold.co/600x400/111827/6B7280?text=Consultative+Selling"
  *         categories:
  *           type: array
- *           description: Categories this course belongs to
+ *           description: Categories the course belongs to (references to CourseCategory)
  *           items:
  *             $ref: '#/components/schemas/CourseCategory'
- *           example: [{ "_id": "60d21b4667d0d8992e610c88", "name": "Sales Skills", "slug": "sales-skills" }]
+ *           example: [{ "_id": "60d21b4667d0d8992e610c88", "name": "Consultative Selling", "slug": "consultative-selling" }]
+ *         audience:
+ *           type: string
+ *           description: Target audience for the course
+ *           enum: [english, french, all]
+ *           default: all
+ *           example: "all"
  *         level:
  *           type: string
  *           description: Difficulty level of the course
- *           example: "Beginner"
+ *           example: "Intermediate"
  *         duration:
  *           type: string
  *           description: Total duration of the course
@@ -71,10 +77,10 @@ const { authenticate: auth } = require('../../middleware/auth');
  *           example: 5
  *         learningOutcomes:
  *           type: array
- *           description: What students will learn from the course
+ *           description: Key learning outcomes from the course
  *           items:
  *             type: string
- *           example: ["Understand the core principles of consultative selling", "Develop active listening and questioning techniques"]
+ *           example: ["Implement a structured discovery process to uncover customer needs", "Position solutions based on business value rather than features", "Build consensus among multiple stakeholders"]
  *         moduleDetails:
  *           type: array
  *           description: Details about each module in the course
@@ -138,6 +144,12 @@ const { authenticate: auth } = require('../../middleware/auth');
  *         schema:
  *           type: string
  *         description: Filter courses by difficulty level
+ *       - in: query
+ *         name: audience
+ *         schema:
+ *           type: string
+ *           enum: [english, french, all]
+ *         description: Filter courses by target audience (english, french, or all). If not specified, returns all content.
  *     responses:
  *       200:
  *         description: List of courses
@@ -259,33 +271,39 @@ router.get('/:id', auth, courseController.getCourseById);
  *               id:
  *                 type: string
  *                 description: Unique identifier for the course
- *                 example: "fundamentals-consultative-selling"
+ *                 example: "consultative-selling-masterclass"
  *               title:
  *                 type: string
  *                 description: Course title
- *                 example: "Fundamentals of Consultative Selling"
+ *                 example: "Consultative Selling Masterclass"
  *               description:
  *                 type: string
  *                 description: Brief description of the course
- *                 example: "Learn the core principles of consultative selling and how to build meaningful client relationships based on trust."
+ *                 example: "Learn how to position yourself as a trusted advisor and create value through the sales process."
  *               longDescription:
  *                 type: string
  *                 description: Detailed description of the course
- *                 example: "This comprehensive course will teach you the fundamentals of consultative selling..."
+ *                 example: "This comprehensive program teaches the foundations of consultative selling, from needs discovery to solution positioning. You'll learn proven frameworks used by top performers to differentiate themselves from competitors."
  *               image:
  *                 type: string
- *                 description: URL to the course image
+ *                 description: URL to the course thumbnail image
  *                 example: "https://placehold.co/600x400/111827/6B7280?text=Consultative+Selling"
  *               categories:
  *                 type: array
- *                 description: Array of MongoDB IDs referencing existing categories only
+ *                 description: Array of MongoDB IDs referencing existing categories
  *                 items:
  *                   type: string
- *                 example: ["60d21b4667d0d8992e610c88"]
+ *                 example: ["60d21b4667d0d8992e610c88", "60d21b4667d0d8992e610c89"]
+ *               audience:
+ *                 type: string
+ *                 description: Target audience for the course
+ *                 enum: [english, french, all]
+ *                 default: all
+ *                 example: "all"
  *               level:
  *                 type: string
  *                 description: Difficulty level of the course
- *                 example: "Beginner"
+ *                 example: "Intermediate"
  *               duration:
  *                 type: string
  *                 description: Total duration of the course
@@ -296,10 +314,10 @@ router.get('/:id', auth, courseController.getCourseById);
  *                 example: 5
  *               learningOutcomes:
  *                 type: array
- *                 description: What students will learn from the course
+ *                 description: Key learning outcomes from the course
  *                 items:
  *                   type: string
- *                 example: ["Understand the core principles of consultative selling", "Develop active listening and questioning techniques"]
+ *                 example: ["Implement a structured discovery process to uncover customer needs", "Position solutions based on business value rather than features", "Build consensus among multiple stakeholders"]
  *               moduleDetails:
  *                 type: array
  *                 description: Details about each module in the course
@@ -308,7 +326,7 @@ router.get('/:id', auth, courseController.getCourseById);
  *                   properties:
  *                     title:
  *                       type: string
- *                       example: "Introduction to Consultative Selling"
+ *                       example: "Understanding Customer Psychology"
  *                     duration:
  *                       type: string
  *                       example: "45 minutes"
@@ -364,13 +382,18 @@ router.post('/', auth, courseController.createCourse);
  *                 description: Detailed description of the course
  *               image:
  *                 type: string
- *                 description: URL to the course image
+ *                 description: URL to the course thumbnail image
  *               categories:
  *                 type: array
- *                 description: Array of MongoDB IDs referencing existing categories only
+ *                 description: Array of MongoDB IDs referencing existing categories
  *                 items:
  *                   type: string
- *                 example: ["60d21b4667d0d8992e610c88"]
+ *                 example: ["60d21b4667d0d8992e610c88", "60d21b4667d0d8992e610c89"]
+ *               audience:
+ *                 type: string
+ *                 description: Target audience for the course
+ *                 enum: [english, french, all]
+ *                 example: "english"
  *               level:
  *                 type: string
  *                 description: Difficulty level of the course
@@ -382,7 +405,7 @@ router.post('/', auth, courseController.createCourse);
  *                 description: Number of modules in the course
  *               learningOutcomes:
  *                 type: array
- *                 description: What students will learn from the course
+ *                 description: Key learning outcomes from the course
  *                 items:
  *                   type: string
  *               moduleDetails:
