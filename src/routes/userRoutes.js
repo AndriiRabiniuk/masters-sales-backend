@@ -133,8 +133,8 @@ router.get('/:id', protect, authorize(['admin', 'super_admin']), getUserById);
  *                 format: password
  *               role:
  *                 type: string
- *                 enum: [super_admin, admin, manager, sales, support]
- *                 default: sales
+ *                 enum: [super_admin, admin, manager, sales, support, user]
+ *                 default: user
  *               company_id:
  *                 type: string
  *                 description: Only super_admin can set this field

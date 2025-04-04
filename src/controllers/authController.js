@@ -47,7 +47,7 @@ const registerUser = asyncHandler(async (req, res) => {
     name,
     email,
     password, // Will be hashed by the model pre-save hook
-    role: role || 'sales', // Default to sales if not specified
+    role: role || 'user', // Default to user if not specified
     company_id
   });
 
