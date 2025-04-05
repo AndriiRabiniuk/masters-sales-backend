@@ -23,13 +23,13 @@ const leadSchema = new mongoose.Schema({
   source: {
     type: String,
     trim: true,
-    enum: ['website', 'referral', 'event'],
+    enum: ['website', 'referral', 'event','outbound','inbound'],
     default: 'website',
   },
   statut: {
     type: String,
     trim: true,
-    enum: ['Start-to-Call', 'Call-to-Connect', 'Connect-to-Contact', 'Contact-to-Demo', 'Demo-to-Close'],
+    enum: ['Start-to-Call', 'Call-to-Connect', 'Connect-to-Contact', 'Contact-to-Demo', 'Demo-to-Close','Lost'],
     default: 'Start-to-Call',
   },
   valeur_estimee: {
