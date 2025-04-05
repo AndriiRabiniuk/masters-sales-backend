@@ -7,6 +7,7 @@ const Note = require('./Note');
 const Interaction = require('./Interaction');
 const InteractionContact = require('./InteractionContact');
 const Task = require('./Task');
+const LeadStatusLog = require('./LeadStatusLog');
 
 // CMS Models
 const Content = require('./Content');
@@ -27,6 +28,7 @@ module.exports = {
   Interaction,
   InteractionContact,
   Task,
+  LeadStatusLog,
   
   // CMS Models
   Content,
