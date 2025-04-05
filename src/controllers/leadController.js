@@ -8,7 +8,7 @@ const { paginateResults } = require('../utils/paginationUtils');
  * @access Private
  */
 exports.getLeads = asyncHandler(async (req, res) => {
-  const { page, limit, search, client_id } = req.query;
+  const { page, limit, search, client_id, personal } = req.query;
   
   // Define which fields to search in if search parameter is provided
   const searchFields = search ? ['name', 'source', 'statut'] : [];
@@ -26,6 +26,12 @@ exports.getLeads = asyncHandler(async (req, res) => {
     // Filter leads by client IDs
     query = { client_id: { $in: clientIds } };
   }
+  
+  // If personal filter is true, only show leads assigned to the current user
+  if (personal === 'true') {
+    query.user_id = req.user._id;
+  }
+  
   if (client_id) {
     query = { client_id: client_id };
   }
