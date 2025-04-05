@@ -16,6 +16,10 @@ const leadSchema = new mongoose.Schema({
     required: true,
     trim: true,
   },
+  description: {
+    type: String,
+    trim: true,
+  },
   source: {
     type: String,
     trim: true,

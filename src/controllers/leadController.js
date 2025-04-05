@@ -119,7 +119,7 @@ exports.getLeadById = asyncHandler(async (req, res) => {
  * @access Private
  */
 exports.createLead = asyncHandler(async (req, res) => {
-  const { client_id, name, source, statut, valeur_estimee, assigned_user_id } = req.body;
+  const { client_id, name, source, statut, valeur_estimee, assigned_user_id, description } = req.body;
   
   // Validate that client_id is provided
   if (!client_id) {
@@ -169,6 +169,7 @@ exports.createLead = asyncHandler(async (req, res) => {
     user_id: assignedUserId,
     client_id,
     name,
+    description,
     source,
     statut,
     valeur_estimee
