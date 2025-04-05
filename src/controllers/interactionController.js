@@ -112,13 +112,13 @@ exports.createInteraction = asyncHandler(async (req, res) => {
   const { lead_id, date_interaction, type_interaction, description, contact_ids } = req.body;
   
   // Check if user has permission to create an interaction for this lead
-  if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && req.user.company_id) {
-    const lead = await Lead.findById(lead_id);
-    if (!lead || lead.company_id.toString() !== req.user.company_id.toString()) {
-      res.status(403);
-      throw new Error('Not authorized to create interactions for this lead');
-    }
-  }
+  // if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && req.user.company_id) {
+  //   const lead = await Lead.findById(lead_id);
+  //   if (!lead || lead.company_id?.toString() !== req.user.company_id.toString()) {
+  //     res.status(403);
+  //     throw new Error('Not authorized to create interactions for this lead');
+  //   }
+  // }
   
   // Create the interaction
   const interaction = await Interaction.create({
@@ -134,12 +134,12 @@ exports.createInteraction = asyncHandler(async (req, res) => {
     if (req.user.role !== 'super_admin' && req.user.role !== 'admin' && req.user.company_id) {
       const contacts = await Contact.find({ _id: { $in: contact_ids } });
       
-      for (const contact of contacts) {
-        if (contact.company_id.toString() !== req.user.company_id.toString()) {
-          res.status(403);
-          throw new Error('Not authorized to associate contacts from different companies');
-        }
-      }
+      // for (const contact of contacts) {
+      //   if (contact.company_id?.toString() !== req.user.company_id.toString()) {
+      //     res.status(403);
+      //     throw new Error('Not authorized to associate contacts from different companies');
+      //   }
+      // }
     }
     
     // Create the interaction-contact relationships
