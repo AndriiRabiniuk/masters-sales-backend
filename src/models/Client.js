@@ -11,6 +11,14 @@ const clientSchema = new mongoose.Schema({
     required: true,
     trim: true,
   },
+  description: {
+    type: String,
+    trim: true,
+  },
+  marketSegment: {
+    type: String,
+    trim: true,
+  },
   SIREN: {
     type: String,
     unique: true,

@@ -14,9 +14,7 @@ const categorySchema = new mongoose.Schema({
   slug: {
     type: String,
     required: true,
-    unique: true,
     trim: true,
-    lowercase: true,
   },
   description: {
     type: String,
@@ -25,7 +23,6 @@ const categorySchema = new mongoose.Schema({
   parent_id: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Category',
-    default: null,
   },
   featured_image: {
     type: mongoose.Schema.Types.ObjectId,
@@ -53,17 +50,24 @@ const categorySchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-// Create automatic slug from name if not provided
+// Create a compound index for company_id and slug to ensure unique slugs per company
+categorySchema.index({ company_id: 1, slug: 1 }, { unique: true });
+
+// Pre-save middleware to update the updated_at timestamp
 categorySchema.pre('save', function(next) {
-  if (this.isModified('name') && !this.slug) {
-    this.slug = this.name
-      .toLowerCase()
-      .replace(/[^\w ]+/g, '')
-      .replace(/ +/g, '-');
-  }
   this.updated_at = Date.now();
   next();
 });
+
+// Static method to find categories by parent
+categorySchema.statics.findByParent = function(parentId) {
+  return this.find({ parent_id: parentId });
+};
+
+// Static method to find root categories (no parent)
+categorySchema.statics.findRootCategories = function() {
+  return this.find({ parent_id: null });
+};
 
 const Category = mongoose.model('Category', categorySchema);
 

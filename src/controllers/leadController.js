@@ -1,4 +1,4 @@
-const { Lead, Client, Interaction, User, Task } = require('../models');
+const { Lead, Client, Interaction, User, Task, LeadStatusLog } = require('../models');
 const asyncHandler = require('express-async-handler');
 const { paginateResults } = require('../utils/paginationUtils');
 
@@ -8,7 +8,7 @@ const { paginateResults } = require('../utils/paginationUtils');
  * @access Private
  */
 exports.getLeads = asyncHandler(async (req, res) => {
-  const { page, limit, search, client_id } = req.query;
+  const { page, limit, search, client_id, personal } = req.query;
   
   // Define which fields to search in if search parameter is provided
   const searchFields = search ? ['name', 'source', 'statut'] : [];
@@ -26,6 +26,12 @@ exports.getLeads = asyncHandler(async (req, res) => {
     // Filter leads by client IDs
     query = { client_id: { $in: clientIds } };
   }
+  
+  // If personal filter is true, only show leads assigned to the current user
+  if (personal === 'true') {
+    query.user_id = req.user._id;
+  }
+  
   if (client_id) {
     query = { client_id: client_id };
   }
@@ -103,11 +109,17 @@ exports.getLeadById = asyncHandler(async (req, res) => {
     .populate('interaction_id')
     .sort({ due_date: 1 });
   
-  // Combine lead data with interactions and tasks
+  // Get status logs for this lead
+  const statusLogs = await LeadStatusLog.find({ lead_id: lead._id })
+    .populate('changed_by', 'name email')
+    .sort({ changed_at: -1 });
+  
+  // Combine lead data with interactions, tasks, and status logs
   const response = {
     ...lead.toObject(),
     interactions,
-    tasks
+    tasks,
+    statusLogs
   };
   
   res.json(response);
@@ -119,7 +131,7 @@ exports.getLeadById = asyncHandler(async (req, res) => {
  * @access Private
  */
 exports.createLead = asyncHandler(async (req, res) => {
-  const { client_id, name, source, statut, valeur_estimee, assigned_user_id } = req.body;
+  const { client_id, name, source, statut, valeur_estimee, assigned_user_id, description } = req.body;
   
   // Validate that client_id is provided
   if (!client_id) {
@@ -169,12 +181,23 @@ exports.createLead = asyncHandler(async (req, res) => {
     user_id: assignedUserId,
     client_id,
     name,
+    description,
     source,
     statut,
     valeur_estimee
   });
   
   if (lead) {
+    // Create initial status log
+    await LeadStatusLog.create({
+      lead_id: lead._id,
+      previous_status: null,
+      new_status: statut || 'Start-to-Call',
+      changed_by: req.user._id,
+      changed_at: new Date(),
+      duration: 0
+    });
+    
     res.status(201).json(lead);
   } else {
     res.status(400);
@@ -218,6 +241,28 @@ exports.updateLead = asyncHandler(async (req, res) => {
     }
   }
 
+  // If status is changing, create a status log
+  if (req.body.statut && req.body.statut !== lead.statut) {
+    // Find the last status log to calculate duration
+    const lastLog = await LeadStatusLog.findOne({ lead_id: lead._id })
+      .sort({ changed_at: -1 });
+    
+    let duration = 0;
+    if (lastLog) {
+      duration = Date.now() - new Date(lastLog.changed_at).getTime();
+    }
+    
+    // Create a new status log
+    await LeadStatusLog.create({
+      lead_id: lead._id,
+      previous_status: lead.statut,
+      new_status: req.body.statut,
+      changed_by: req.user._id,
+      changed_at: new Date(),
+      duration
+    });
+  }
+  
   // Handle lead reassignment
   if (req.body.assigned_user_id) {
     if (req.user.role !== 'super_admin' && req.user.role !== 'admin') {

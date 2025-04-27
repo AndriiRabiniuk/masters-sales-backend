@@ -17,7 +17,7 @@ const contentTagSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-// Compound index to ensure uniqueness of content-tag pairs
+// Create a compound index to ensure unique content-tag pairs
 contentTagSchema.index({ content_id: 1, tag_id: 1 }, { unique: true });
 
 const ContentTag = mongoose.model('ContentTag', contentTagSchema);

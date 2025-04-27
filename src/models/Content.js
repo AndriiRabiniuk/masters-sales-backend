@@ -14,9 +14,7 @@ const contentSchema = new mongoose.Schema({
   slug: {
     type: String,
     required: true,
-    unique: true,
     trim: true,
-    lowercase: true,
   },
   content: {
     type: String,
@@ -34,10 +32,12 @@ const contentSchema = new mongoose.Schema({
   category_id: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Category',
+    required: true,
   },
   template_id: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Template',
+    required: true,
   },
   featured_image: {
     type: mongoose.Schema.Types.ObjectId,
@@ -55,11 +55,10 @@ const contentSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    // Only required if visibility is password_protected
+    trim: true,
   },
   publish_date: {
     type: Date,
-    default: Date.now,
   },
   meta_title: {
     type: String,
@@ -82,6 +81,9 @@ const contentSchema = new mongoose.Schema({
 // Index for faster searching
 contentSchema.index({ title: 'text', content: 'text', excerpt: 'text' });
 
+// Create a compound index for company_id and slug to ensure unique slugs per company
+contentSchema.index({ company_id: 1, slug: 1 }, { unique: true });
+
 // Create automatic slug from title if not provided
 contentSchema.pre('save', function(next) {
   if (this.isModified('title') && !this.slug) {
@@ -93,6 +95,16 @@ contentSchema.pre('save', function(next) {
   this.updated_at = Date.now();
   next();
 });
+
+// Static method to find content by status
+contentSchema.statics.findByStatus = function(status) {
+  return this.find({ status });
+};
+
+// Static method to find content by category
+contentSchema.statics.findByCategory = function(categoryId) {
+  return this.find({ category_id: categoryId });
+};
 
 const Content = mongoose.model('Content', contentSchema);
 

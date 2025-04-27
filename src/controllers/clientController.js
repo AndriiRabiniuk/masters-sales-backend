@@ -9,6 +9,8 @@ exports.createClient = asyncHandler(async (req, res) => {
   let { 
     company_id, 
     name, 
+    description,
+    marketSegment,
     SIREN, 
     SIRET, 
     code_postal, 
@@ -33,6 +35,8 @@ exports.createClient = asyncHandler(async (req, res) => {
   const client = await Client.create({
     company_id,
     name,
+    description,
+    marketSegment,
     SIREN,
     SIRET,
     code_postal,
@@ -59,7 +63,7 @@ exports.getClients = asyncHandler(async (req, res) => {
   const { page, limit, search } = req.query;
   
   // Define which fields to search in if search parameter is provided
-  const searchFields = search ? ['name', 'SIREN', 'SIRET', 'code_postal'] : [];
+  const searchFields = search ? ['name', 'description', 'marketSegment', 'SIREN', 'SIRET', 'code_postal'] : [];
   
   // Get company_id from authenticated user (assuming this is how you filter by company)
   const company_id = req.user.company_id;

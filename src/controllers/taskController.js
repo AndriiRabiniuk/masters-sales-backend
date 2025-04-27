@@ -8,7 +8,7 @@ const asyncHandler = require('express-async-handler');
  * @access Private
  */
 const getTasks = asyncHandler(async (req, res) => {
-  const { page, limit, search, status } = req.query;
+  const { page, limit, search, status, personal } = req.query;
   
   // Define which fields to search in if search parameter is provided
   const searchFields = search ? ['titre', 'description'] : [];
@@ -42,6 +42,11 @@ const getTasks = asyncHandler(async (req, res) => {
   // Add status filter if provided
   if (status) {
     query.statut = status;
+  }
+  
+  // If personal filter is true, only show tasks assigned to the current user
+  if (personal === 'true') {
+    query.assigned_to = req.user._id;
   }
   
   // Get paginated results

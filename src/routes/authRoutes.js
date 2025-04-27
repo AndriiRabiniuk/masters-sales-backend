@@ -44,7 +44,8 @@ const { protect, isSuperAdmin, isAdmin, authorize } = require('../middleware/aut
  *                 type: string
  *               role:
  *                 type: string
- *                 enum: [admin, user, manager]
+ *                 enum: [admin, user, manager, sales, support]
+ *                 default: user
  *     responses:
  *       201:
  *         description: Registration successful
